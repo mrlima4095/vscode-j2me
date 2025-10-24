@@ -1,0 +1,25 @@
+{
+  "name": "vscode-j2me",
+  "displayName": "J2ME",
+  "description": "Add support for J2ME API",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.105.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [{
+      "id": "j2me",
+      "aliases": ["Java ME", "j2me"],
+      "extensions": [".java"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "j2me",
+      "scopeName": "source.j2me",
+      "path": "./syntaxes/j2me.tmLanguage.json"
+    }]
+  }
+}
