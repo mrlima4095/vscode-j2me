@@ -1,25 +1,27 @@
 {
-  "name": "vscode-j2me",
-  "displayName": "J2ME",
-  "description": "Add support for J2ME API",
-  "version": "0.0.1",
-  "engines": {
-    "vscode": "^1.105.0"
-  },
-  "categories": [
-    "Programming Languages"
-  ],
-  "contributes": {
-    "languages": [{
-      "id": "j2me",
-      "aliases": ["Java ME", "j2me"],
-      "extensions": [".java"],
-      "configuration": "./language-configuration.json"
-    }],
-    "grammars": [{
-      "language": "j2me",
-      "scopeName": "source.j2me",
-      "path": "./syntaxes/j2me.tmLanguage.json"
-    }]
-  }
+    "name": "vscode-j2me", 
+    "displayName": "J2ME",
+    "description": "Add support for J2ME API",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": ">=1.103.0"
+    },
+    "categories": [ "Programming Languages" ],
+    "main": "./extension.js",
+    "activationEvents": [ "onLanguage:java" ],
+    "contributes": {
+        "grammars": [
+            {
+                "scopeName": "j2me.injections",
+                "path": "./syntaxes/j2me.injection.json",
+                "injectTo": [ "source.java" ]
+            }
+        ],
+        "snippets": [
+            {
+                "language": "java",
+                "path": "./snippets/j2me.code-snippets"
+            }
+        ]
+    }
 }
