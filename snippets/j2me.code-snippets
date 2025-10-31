@@ -7,7 +7,7 @@
             "",
             "public class ${1:MyMidlet} extends MIDlet implements CommandListener {",
             "    private Form screen = new Form(getAppProperty(\"MIDlet-Name\"));",
-            "    private Display display = Display.getDisplay(this);;",
+            "    private Display display = Display.getDisplay(this);",
             "    private Command exit = new Command(\"Exit\", Command.EXIT, 1);",
             "",
             "    public void startApp() {",
@@ -22,10 +22,43 @@
             "    public void destroyApp(boolean unconditional) { }",
             "",
             "    public void commandAction(Command c, Displayable d) {",
-            "        if (c == exit) { destroyApp(); }",
+            "        if (c == exit) { destroyApp(false); notifyDestroyed(); }",
             "    }",
             "}"
         ],
         "description": "Create a Basic MIDlet"
+    },
+
+    "Canvas Base": {
+        "prefix": "canvas",
+        "body": [
+            "import javax.microedition.lcdui.*;",
+            "",
+            "public class ${1:MyCanvas} extends Canvas {",
+            "",
+            "    protected void paint(Graphics g) {",
+            "        int width = getWidth();",
+            "        int height = getHeight();",
+            "        g.setColor(0x000000);",
+            "        g.fillRect(0, 0, width, height);",
+            "",
+            "        g.setColor(0xFFFFFF);",
+            "        g.drawString(\"Hello Canvas!\", width / 2, height / 2, Graphics.BASELINE | Graphics.HCENTER);",
+            "    }",
+            "",
+            "    protected void keyPressed(int keyCode) {",
+            "        int action = getGameAction(keyCode);",
+            "        switch (action) {",
+            "            case Canvas.UP: break;",
+            "            case Canvas.DOWN: break;",
+            "            case Canvas.LEFT: break;",
+            "            case Canvas.RIGHT: break;",
+            "            case Canvas.FIRE: break;",
+            "        }",
+            "        repaint();",
+            "    }",
+            "}"
+        ],
+        "description": "Create a Basic Canvas Class"
     }
 }
