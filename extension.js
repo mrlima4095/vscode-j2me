@@ -60,20 +60,17 @@ function activate(context) {
 
                 const variableMatch = line.match(/(\w+)\.$/);
                 if (variableMatch) {
-                    const variable = variableMatch[1];
-                    const text = document.getText();
-
-                    const declMatch = new RegExp(`(\\w+)\\s+${variable}\\s*=\\s*(?:new\\s+)?(\\w+)`, 'm').exec(text);
-                    if (declMatch) {
-                        const type = declMatch[1] || declMatch[2];
+                    const name = variableMatch[1];
+                    const decl = new RegExp(`(\\w+)\\s+${name}\\s*=\\s*(?:new\\s+)?(\\w+)`, 'm').exec(document.getText());
+                    if (decl) {
+                        const type = decl[2];
                         if (j2meClasses[type]) {
-                            j2meClasses[type].methods.forEach(m => {
+                            return j2meClasses[type].methods.map(m => {
                                 const item = new vscode.CompletionItem(m.label, vscode.CompletionItemKind.Method);
                                 item.insertText = new vscode.SnippetString(m.insertText);
                                 item.documentation = new vscode.MarkdownString(m.documentation);
-                                items.push(item);
+                                return item;
                             });
-                            return items;
                         }
                     }
                 }
@@ -82,17 +79,17 @@ function activate(context) {
                 if (classMatch) {
                     const className = classMatch[1];
                     if (j2meClasses[className]) {
-                        j2meClasses[className].methods.forEach(m => {
+                        return j2meClasses[className].methods.map(m => {
                             const item = new vscode.CompletionItem(m.label, vscode.CompletionItemKind.Method);
                             item.insertText = new vscode.SnippetString(m.insertText);
                             item.documentation = new vscode.MarkdownString(m.documentation);
-                            items.push(item);
+                            return item;
                         });
-                        return items;
                     }
                 }
 
                 return [];
+
             }
         },
         '.' 
