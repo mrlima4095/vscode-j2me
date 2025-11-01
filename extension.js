@@ -86,7 +86,7 @@ function createSymbolsFromHierarchy(hierarchy, parentName = '') {
         } else {
             const packageSymbol = new vscode.DocumentSymbol(
                 key,
-                //fullName, 
+                fullName, 
                 vscode.SymbolKind.Package,
                 new vscode.Range(0, 0, 0, 0),
                 new vscode.Range(0, 0, 0, 0)
