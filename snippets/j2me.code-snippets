@@ -136,5 +136,18 @@
             "}"
         ],
         "description": "RMS Read/Write utilities for RecordStore"
+    },
+
+    "Imports": {
+        "prefix": "import",
+        "body": [
+            "import javax.microedition.lcdui.*;",
+            "import javax.microedition.midlet.MIDlet;",
+            "import javax.microedition.rms.*;",
+            "import javax.microedition.io.*;",
+            "import java.util.*;",
+            "import java.io.*;"
+        ],
+        "description": "Basic importations for your MIDlet"
     }
 }
