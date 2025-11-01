@@ -5,7 +5,7 @@ const j2meClasses = {
         package: 'javax.microedition.lcdui.Display',
         description: 'Represents the device display and manages which screen (Displayable) is shown.',
         methods: [
-            { label: 'getDisplay', insertText: 'getDisplay()', documentation: 'Returns the Display object for the current MIDlet.', returns: 'Display' },
+            { label: 'getDisplay', insertText: 'getDisplay(this)', documentation: 'Returns the Display object for the current MIDlet.', returns: 'Display' },
             { label: 'getCurrent', insertText: 'getCurrent()', documentation: 'Returns the current Displayable.', returns: 'Displayable' },
             { label: 'setCurrent', insertText: 'setCurrent(${1:Displayable})', documentation: 'Sets the current Displayable.', returns: 'void' }
         ]
@@ -32,6 +32,84 @@ const j2meClasses = {
     }
 };
 
+// Função para criar a estrutura hierárquica de pacotes
+function buildPackageHierarchy() {
+    const root = {};
+    
+    Object.values(j2meClasses).forEach(cls => {
+        const packageParts = cls.package.split('.');
+        let currentLevel = root;
+        
+        // Navega pela hierarquia de pacotes
+        packageParts.forEach((part, index) => {
+            if (!currentLevel[part]) {
+                currentLevel[part] = {};
+            }
+            
+            // Se é o último nível (nome da classe), adiciona a classe
+            if (index === packageParts.length - 1) {
+                currentLevel[part]._class = cls;
+            }
+            
+            currentLevel = currentLevel[part];
+        });
+    });
+    
+    return root;
+}
+
+function createSymbolsFromHierarchy(hierarchy, parentName = '') {
+    const symbols = [];
+    
+    Object.keys(hierarchy).forEach(key => {
+        const fullName = parentName ? `${parentName}.${key}` : key;
+        const node = hierarchy[key];
+        
+        if (node._class) {
+            const cls = node._class;
+            const symbol = new vscode.DocumentSymbol(
+                key,
+                cls.description,
+                vscode.SymbolKind.Class,
+                new vscode.Range(0, 0, 0, 0),
+                new vscode.Range(0, 0, 0, 0)
+            );
+            
+            if (cls.methods && cls.methods.length > 0) {
+                cls.methods.forEach(method => {
+                    const methodSymbol = new vscode.DocumentSymbol(
+                        method.label,
+                        method.documentation,
+                        vscode.SymbolKind.Method,
+                        new vscode.Range(0, 0, 0, 0),
+                        new vscode.Range(0, 0, 0, 0)
+                    );
+                    methodSymbol.detail = `→ ${method.returns}`;
+                    symbol.children.push(methodSymbol);
+                });
+            }
+            
+            symbols.push(symbol);
+        } else {
+            const packageSymbol = new vscode.DocumentSymbol(
+                key,
+                `Package: ${fullName}`,
+                vscode.SymbolKind.Package,
+                new vscode.Range(0, 0, 0, 0),
+                new vscode.Range(0, 0, 0, 0)
+            );
+            
+            // Processa recursivamente os children
+            const childSymbols = createSymbolsFromHierarchy(node, fullName);
+            packageSymbol.children = childSymbols;
+            
+            symbols.push(packageSymbol);
+        }
+    });
+    
+    return symbols;
+}
+
 function getTypeAtPosition(document, position) {
     const lineText = document.lineAt(position.line).text.substring(0, position.character);
     const chainMatch = lineText.match(/([\w\.]+)\.$/);
@@ -50,52 +128,6 @@ function getTypeAtPosition(document, position) {
     }
 
     return currentType;
-}
-
-function parseJavaStructure(document) {
-    const text = document.getText();
-    const symbols = [];
-
-    const classRegex = /class\s+(\w+)/g;
-    const methodRegex = /(public|private|protected)?\s*(static)?\s*([\w<>]+)\s+(\w+)\s*\((.*?)\)\s*\{/g;
-    const varRegex = /(public|private|protected)?\s*([\w<>]+)\s+(\w+)\s*(=|;)/g;
-
-    let match;
-
-    while ((match = classRegex.exec(text))) {
-        const name = match[1];
-        const symbol = new vscode.DocumentSymbol(
-            name, 'Class',
-            vscode.SymbolKind.Class,
-            new vscode.Range(document.positionAt(match.index), document.positionAt(match.index + match[0].length)),
-            new vscode.Range(document.positionAt(match.index), document.positionAt(match.index + match[0].length))
-        );
-        symbols.push(symbol);
-    }
-
-    while ((match = methodRegex.exec(text))) {
-        const name = match[4];
-        const symbol = new vscode.DocumentSymbol(
-            name, 'Method',
-            vscode.SymbolKind.Method,
-            new vscode.Range(document.positionAt(match.index), document.positionAt(match.index + match[0].length)),
-            new vscode.Range(document.positionAt(match.index), document.positionAt(match.index + match[0].length))
-        );
-        symbols.push(symbol);
-    }
-
-    while ((match = varRegex.exec(text))) {
-        const name = match[3];
-        const symbol = new vscode.DocumentSymbol(
-            name, 'Variable',
-            vscode.SymbolKind.Variable,
-            new vscode.Range(document.positionAt(match.index), document.positionAt(match.index + match[0].length)),
-            new vscode.Range(document.positionAt(match.index), document.positionAt(match.index + match[0].length))
-        );
-        symbols.push(symbol);
-    }
-
-    return symbols;
 }
 
 function activate(context) {
@@ -136,8 +168,6 @@ function activate(context) {
         '.'
     );
 
-    const structureProvider = vscode.languages.registerDocumentSymbolProvider({ language: 'java', scheme: 'file' }, { provideDocumentSymbols(document) { return parseJavaStructure(document); } });
-
     const varProvider = vscode.languages.registerCompletionItemProvider(
         { language: 'java', scheme: 'file' },
         {
@@ -157,7 +187,17 @@ function activate(context) {
         }
     );
 
-    context.subscriptions.push(classProvider, methodProvider, structureProvider, varProvider);
+    const symbolProvider = vscode.languages.registerDocumentSymbolProvider(
+        { language: 'java', scheme: 'file' },
+        {
+            provideDocumentSymbols() {
+                const hierarchy = buildPackageHierarchy();
+                return createSymbolsFromHierarchy(hierarchy);
+            }
+        }
+    );
+
+    context.subscriptions.push(classProvider, methodProvider, varProvider, symbolProvider);
 
     console.log(javaExt ? "Java extension detected (Red Hat)" : "No Java support - using internal");
 }
