@@ -77,7 +77,7 @@ function createSymbolsFromHierarchy(hierarchy, parentName = '') {
                         new vscode.Range(0, 0, 0, 0),
                         new vscode.Range(0, 0, 0, 0)
                     );
-                    methodSymbol.detail = ""; //method.returns; 
+                    methodSymbol.detail = method.returns; 
                     symbol.children.push(methodSymbol);
                 });
             }
@@ -86,7 +86,7 @@ function createSymbolsFromHierarchy(hierarchy, parentName = '') {
         } else {
             const packageSymbol = new vscode.DocumentSymbol(
                 key,
-                fullName, 
+                //fullName, 
                 vscode.SymbolKind.Package,
                 new vscode.Range(0, 0, 0, 0),
                 new vscode.Range(0, 0, 0, 0)
