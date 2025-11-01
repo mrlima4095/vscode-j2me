@@ -3,6 +3,8 @@
 Bring back the glory of Java ME development!  
 This VS Code extension adds syntax highlighting, snippets, and essential tools for building **MIDlets** and J2ME applications directly inside your editor.
 
+*Note: If you don't have a Java extension it will use the embbed Java mod*
+
 ---
 
 ## ✨ Features
