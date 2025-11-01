@@ -3,6 +3,7 @@
     "displayName": "J2ME",
     "description": "Add support for J2ME API",
     "repository": "https://github.com/mrlima4095/vscode-j2me",
+    "license": "MIT",
     "version": "0.0.1",
     "engines": {
         "vscode": ">=1.103.0"
