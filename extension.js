@@ -32,17 +32,7 @@ const j2meClasses = {
     }
 };
 
-const midletInheritedMethods = [
-    'getAppProperty',
-    'platformRequest',
-    'checkPermission',
-    'resumeRequest',
-    'notifyDestroyed',
-    'notifyPaused',
-    'startApp', 
-    'pauseApp',
-    'destroyApp'
-];
+const midletInheritedMethods = [ 'getAppProperty', 'platformRequest', 'checkPermission', 'resumeRequest', 'notifyDestroyed', 'notifyPaused', 'startApp', 'pauseApp', 'destroyApp' ];
 
 function buildPackageHierarchy() {
     const root = {};
@@ -61,7 +51,6 @@ function buildPackageHierarchy() {
     
     return root;
 }
-
 function createSymbolsFromHierarchy(hierarchy, parentName = '') {
     const symbols = [];
     
@@ -88,7 +77,7 @@ function createSymbolsFromHierarchy(hierarchy, parentName = '') {
                         new vscode.Range(0, 0, 0, 0),
                         new vscode.Range(0, 0, 0, 0)
                     );
-                    methodSymbol.detail = method.returns; 
+                    methodSymbol.detail = ""; //method.returns; 
                     symbol.children.push(methodSymbol);
                 });
             }
