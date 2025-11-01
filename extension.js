@@ -32,14 +32,16 @@ const j2meClasses = {
     }
 };
 
-const inheritedMIDletMethods = [
-    'startApp',
-    'pauseApp',
-    'destroyApp',
-    'notifyPaused',
-    'notifyDestroyed',
+const midletInheritedMethods = [
     'getAppProperty',
-    'platformRequest'
+    'platformRequest',
+    'checkPermission',
+    'resumeRequest',
+    'notifyDestroyed',
+    'notifyPaused',
+    'startApp', 
+    'pauseApp',
+    'destroyApp'
 ];
 
 function buildPackageHierarchy() {
@@ -131,12 +133,33 @@ function getTypeAtPosition(document, position) {
     return currentType;
 }
 
-function isExtendingMIDlet(document) { const text = document.getText(); const extendsMatch = text.match(/class\s+\w+\s+extends\s+MIDlet/); return !!extendsMatch; }
-
-function getCurrentClassName(document) {
+function extendsMIDlet(document) {
     const text = document.getText();
-    const classMatch = text.match(/class\s+(\w+)/);
-    return classMatch ? classMatch[1] : null;
+
+    const classExtendsMatch = text.match(/class\s+\w+\s+extends\s+MIDlet/);
+    if (classExtendsMatch) return true;
+
+    const classExtendsWithPackageMatch = text.match(/class\s+\w+\s+extends\s+[^{]*\bMIDlet\b/);
+    if (classExtendsWithPackageMatch) return true;
+    
+    const hasMIDletImport = text.includes('import javax.microedition.midlet.MIDlet');
+    const hasExtendsMIDlet = text.includes('extends MIDlet');
+    
+    return hasMIDletImport && hasExtendsMIDlet;
+}
+
+function getMIDletInheritedMethods() {
+    return midletInheritedMethods.map(methodName => {
+        const method = j2meClasses.MIDlet.methods.find(m => m.label === methodName);
+        if (method) {
+            const item = new vscode.CompletionItem(method.label, vscode.CompletionItemKind.Method);
+            item.insertText = new vscode.SnippetString(method.insertText);
+            item.documentation = new vscode.MarkdownString(method.documentation);
+            item.detail = `MIDlet.${method.label} → ${method.returns}`;
+            return item;
+        }
+        return null;
+    }).filter(item => item !== null);
 }
 
 function activate(context) {
@@ -164,26 +187,20 @@ function activate(context) {
         { language: 'java', scheme: 'file' },
         {
             provideCompletionItems(document, position) {
-                const lineText = document.lineAt(position.line).text.substring(0, position.character);
-
-                if (!lineText.endsWith('.')) {
-                    if (isExtendingMIDlet(document)) {
-                        return inheritedMIDletMethods.map(methodName => {
-                            const method = j2meClasses.MIDlet.methods.find(m => m.label === methodName);
-                            const item = new vscode.CompletionItem(methodName, vscode.CompletionItemKind.Method);
-                            item.insertText = new vscode.SnippetString(method.insertText);
-                            item.documentation = new vscode.MarkdownString(method.documentation);
-                            item.detail = `MIDlet.${methodName} (inherited)`;
-                            return item;
-                        });
+                const type = getTypeAtPosition(document, position);
+                
+                if (!type) {
+                    const lineText = document.lineAt(position.line).text.substring(0, position.character);
+                    const isDirectCompletion = !lineText.match(/[\w\)]\.$/);
+                    
+                    if (isDirectCompletion && extendsMIDlet(document)) {
+                        return getMIDletInheritedMethods();
                     }
                     return [];
                 }
-
-                const type = getTypeAtPosition(document, position);
-                if (!type || !j2meClasses[type]) return [];
                 
-                return j2meClasses[type].methods.map(m => { 
+                if (!j2meClasses[type]) return [];
+                return j2meClasses[type].methods.map(m => {
                     const item = new vscode.CompletionItem(m.label, vscode.CompletionItemKind.Method);
                     item.insertText = new vscode.SnippetString(m.insertText);
                     item.documentation = new vscode.MarkdownString(m.documentation);
@@ -191,7 +208,24 @@ function activate(context) {
                 });
             }
         },
-        '.' 
+        '.'
+    );
+
+    const directMethodProvider = vscode.languages.registerCompletionItemProvider(
+        { language: 'java', scheme: 'file' },
+        {
+            provideCompletionItems(document, position) {
+                const lineText = document.lineAt(position.line).text.substring(0, position.character);
+                const isDirectCompletion = !lineText.match(/[\w\)]\.$/);
+                
+                if (isDirectCompletion && extendsMIDlet(document)) {
+                    return getMIDletInheritedMethods();
+                }
+                
+                return [];
+            }
+        },
+        ''
     );
 
     const varProvider = vscode.languages.registerCompletionItemProvider(
@@ -223,7 +257,13 @@ function activate(context) {
         }
     );
 
-    context.subscriptions.push(classProvider, methodProvider, varProvider, symbolProvider);
+    context.subscriptions.push(
+        classProvider, 
+        methodProvider, 
+        directMethodProvider, 
+        varProvider, 
+        symbolProvider
+    );
 
     console.log(javaExt ? "Java extension detected (Red Hat)" : "No Java support - using internal");
 }
