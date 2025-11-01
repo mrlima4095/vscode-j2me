@@ -32,7 +32,16 @@ const j2meClasses = {
     }
 };
 
-// Função para criar a estrutura hierárquica de pacotes
+const inheritedMIDletMethods = [
+    'startApp',
+    'pauseApp',
+    'destroyApp',
+    'notifyPaused',
+    'notifyDestroyed',
+    'getAppProperty',
+    'platformRequest'
+];
+
 function buildPackageHierarchy() {
     const root = {};
     
@@ -40,16 +49,9 @@ function buildPackageHierarchy() {
         const packageParts = cls.package.split('.');
         let currentLevel = root;
         
-        // Navega pela hierarquia de pacotes
         packageParts.forEach((part, index) => {
-            if (!currentLevel[part]) {
-                currentLevel[part] = {};
-            }
-            
-            // Se é o último nível (nome da classe), adiciona a classe
-            if (index === packageParts.length - 1) {
-                currentLevel[part]._class = cls;
-            }
+            if (!currentLevel[part]) { currentLevel[part] = {}; }
+            if (index === packageParts.length - 1) { currentLevel[part]._class = cls; }
             
             currentLevel = currentLevel[part];
         });
@@ -84,7 +86,7 @@ function createSymbolsFromHierarchy(hierarchy, parentName = '') {
                         new vscode.Range(0, 0, 0, 0),
                         new vscode.Range(0, 0, 0, 0)
                     );
-                    methodSymbol.detail = `→ ${method.returns}`;
+                    methodSymbol.detail = method.returns; 
                     symbol.children.push(methodSymbol);
                 });
             }
@@ -93,13 +95,12 @@ function createSymbolsFromHierarchy(hierarchy, parentName = '') {
         } else {
             const packageSymbol = new vscode.DocumentSymbol(
                 key,
-                `Package: ${fullName}`,
+                fullName, 
                 vscode.SymbolKind.Package,
                 new vscode.Range(0, 0, 0, 0),
                 new vscode.Range(0, 0, 0, 0)
             );
-            
-            // Processa recursivamente os children
+
             const childSymbols = createSymbolsFromHierarchy(node, fullName);
             packageSymbol.children = childSymbols;
             
@@ -130,6 +131,14 @@ function getTypeAtPosition(document, position) {
     return currentType;
 }
 
+function isExtendingMIDlet(document) { const text = document.getText(); const extendsMatch = text.match(/class\s+\w+\s+extends\s+MIDlet/); return !!extendsMatch; }
+
+function getCurrentClassName(document) {
+    const text = document.getText();
+    const classMatch = text.match(/class\s+(\w+)/);
+    return classMatch ? classMatch[1] : null;
+}
+
 function activate(context) {
     console.log("J2ME Enabled!");
 
@@ -155,9 +164,26 @@ function activate(context) {
         { language: 'java', scheme: 'file' },
         {
             provideCompletionItems(document, position) {
+                const lineText = document.lineAt(position.line).text.substring(0, position.character);
+
+                if (!lineText.endsWith('.')) {
+                    if (isExtendingMIDlet(document)) {
+                        return inheritedMIDletMethods.map(methodName => {
+                            const method = j2meClasses.MIDlet.methods.find(m => m.label === methodName);
+                            const item = new vscode.CompletionItem(methodName, vscode.CompletionItemKind.Method);
+                            item.insertText = new vscode.SnippetString(method.insertText);
+                            item.documentation = new vscode.MarkdownString(method.documentation);
+                            item.detail = `MIDlet.${methodName} (inherited)`;
+                            return item;
+                        });
+                    }
+                    return [];
+                }
+
                 const type = getTypeAtPosition(document, position);
                 if (!type || !j2meClasses[type]) return [];
-                return j2meClasses[type].methods.map(m => {
+                
+                return j2meClasses[type].methods.map(m => { 
                     const item = new vscode.CompletionItem(m.label, vscode.CompletionItemKind.Method);
                     item.insertText = new vscode.SnippetString(m.insertText);
                     item.documentation = new vscode.MarkdownString(m.documentation);
@@ -165,7 +191,7 @@ function activate(context) {
                 });
             }
         },
-        '.'
+        '.' 
     );
 
     const varProvider = vscode.languages.registerCompletionItemProvider(
