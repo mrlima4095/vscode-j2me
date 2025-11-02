@@ -428,7 +428,7 @@ function createSymbolsFromHierarchy(hierarchy, parentName = '') {
             
             const symbol = new vscode.DocumentSymbol(
                 cls.name,
-                cls.description || '',
+                '',
                 vscode.SymbolKind.Class,
                 new vscode.Range(0, 0, 0, 10),
                 new vscode.Range(0, 0, 0, 10)
@@ -445,7 +445,7 @@ function createSymbolsFromHierarchy(hierarchy, parentName = '') {
                         new vscode.Range(0, 0, 0, 10),
                         new vscode.Range(0, 0, 0, 10)
                     );
-                    methodSymbol.detail = `Returns: ${method.returns}`;
+                    methodSymbol.detail = method.returns;
                     
                     // Adiciona informação de herança se for o caso
                     if (method.inheritedFrom && method.inheritedFrom !== cls.name) {
