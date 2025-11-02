@@ -51,6 +51,8 @@ function buildPackageHierarchy() {
     
     return root;
 }
+
+// CORREÇÃO AQUI: Criar símbolos com informações completas
 function createSymbolsFromHierarchy(hierarchy, parentName = '') {
     const symbols = [];
     
@@ -60,38 +62,43 @@ function createSymbolsFromHierarchy(hierarchy, parentName = '') {
         
         if (node._class) {
             const cls = node._class;
+            
+            // CORREÇÃO: Criar símbolo com informações completas
             const symbol = new vscode.DocumentSymbol(
-                key,
-                cls.description,
-                vscode.SymbolKind.Class,
-                new vscode.Range(0, 0, 0, 0),
-                new vscode.Range(0, 0, 0, 0)
+                key, // nome
+                cls.description, // detalhes
+                vscode.SymbolKind.Class, // tipo
+                new vscode.Range(0, 0, 0, 10), // CORREÇÃO: range não vazio
+                new vscode.Range(0, 0, 0, 10)  // CORREÇÃO: range não vazio
             );
             
+            // Adicionar métodos como filhos
             if (cls.methods && cls.methods.length > 0) {
                 cls.methods.forEach(method => {
                     const methodSymbol = new vscode.DocumentSymbol(
                         method.label,
-                        method.documentation,
+                        `${method.documentation} → ${method.returns}`,
                         vscode.SymbolKind.Method,
-                        new vscode.Range(0, 0, 0, 0),
-                        new vscode.Range(0, 0, 0, 0)
+                        new vscode.Range(0, 0, 0, 10),
+                        new vscode.Range(0, 0, 0, 10)
                     );
-                    methodSymbol.detail = method.returns; 
+                    methodSymbol.detail = method.returns;
                     symbol.children.push(methodSymbol);
                 });
             }
             
             symbols.push(symbol);
         } else {
+            // Criar símbolo de pacote
             const packageSymbol = new vscode.DocumentSymbol(
                 key,
-                fullName, 
+                `Package: ${fullName}`,
                 vscode.SymbolKind.Package,
-                new vscode.Range(0, 0, 0, 0),
-                new vscode.Range(0, 0, 0, 0)
+                new vscode.Range(0, 0, 0, 10),
+                new vscode.Range(0, 0, 0, 10)
             );
 
+            // Recursivamente adicionar filhos
             const childSymbols = createSymbolsFromHierarchy(node, fullName);
             packageSymbol.children = childSymbols;
             
@@ -240,8 +247,15 @@ function activate(context) {
         { language: 'java', scheme: 'file' },
         {
             provideDocumentSymbols() {
-                const hierarchy = buildPackageHierarchy();
-                return createSymbolsFromHierarchy(hierarchy);
+                try {
+                    const hierarchy = buildPackageHierarchy();
+                    const symbols = createSymbolsFromHierarchy(hierarchy);
+                    console.log(`Generated ${symbols.length} J2ME symbols`);
+                    return symbols;
+                } catch (error) {
+                    console.error('Error generating symbols:', error);
+                    return [];
+                }
             }
         }
     );
