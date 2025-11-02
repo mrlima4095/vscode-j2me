@@ -66,7 +66,7 @@ function createSymbolsFromHierarchy(hierarchy, parentName = '') {
             // CORREÇÃO: Criar símbolo com informações completas
             const symbol = new vscode.DocumentSymbol(
                 key, // nome
-                cls.description, // detalhes
+                "", //cls.description, // detalhes
                 vscode.SymbolKind.Class, // tipo
                 new vscode.Range(0, 0, 0, 10), // CORREÇÃO: range não vazio
                 new vscode.Range(0, 0, 0, 10)  // CORREÇÃO: range não vazio
@@ -89,7 +89,6 @@ function createSymbolsFromHierarchy(hierarchy, parentName = '') {
             
             symbols.push(symbol);
         } else {
-            // Criar símbolo de pacote
             const packageSymbol = new vscode.DocumentSymbol(
                 key,
                 `Package: ${fullName}`,
@@ -98,7 +97,6 @@ function createSymbolsFromHierarchy(hierarchy, parentName = '') {
                 new vscode.Range(0, 0, 0, 10)
             );
 
-            // Recursivamente adicionar filhos
             const childSymbols = createSymbolsFromHierarchy(node, fullName);
             packageSymbol.children = childSymbols;
             
