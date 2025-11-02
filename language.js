@@ -358,7 +358,6 @@ const j2meClasses = {
         methods: []
     }
 };
-const vscode = require('vscode');
 
 const methodCache = new Map();
 
