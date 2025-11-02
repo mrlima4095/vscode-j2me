@@ -1,8 +1,19 @@
 const vscode = require('vscode');
 
 const j2meClasses = {
+    Object: {
+        package: 'java.lang.Object',
+        description: 'The root of the class hierarchy. Every class has Object as a superclass.',
+        methods: [
+            { label: 'getClass', insertText: 'getClass()', documentation: 'Returns the runtime class of this Object.', returns: 'Class' },
+            { label: 'hashCode', insertText: 'hashCode()', documentation: 'Returns a hash code value for the object.', returns: 'int' },
+            { label: 'equals', insertText: 'equals(${1:Object})', documentation: 'Indicates whether some other object is "equal to" this one.', returns: 'boolean' },
+            { label: 'toString', insertText: 'toString()', documentation: 'Returns a string representation of the object.', returns: 'String' }
+        ]
+    },
     Display: {
         package: 'javax.microedition.lcdui.Display',
+        extends: 'Object',
         description: 'Represents the device display and manages which screen (Displayable) is shown.',
         methods: [
             { label: 'getDisplay', insertText: 'getDisplay(this)', documentation: 'Returns the Display object for the current MIDlet.', returns: 'Display' },
@@ -15,6 +26,7 @@ const j2meClasses = {
     },
     Displayable: {
         package: 'javax.microedition.lcdui.Displayable',
+        extends: 'Object',
         description: 'Base class for objects that can be displayed on the screen.',
         methods: [
             { label: 'addCommand', insertText: 'addCommand(${1:Command})', documentation: 'Adds a command to the Displayable.', returns: 'void' },
@@ -25,6 +37,7 @@ const j2meClasses = {
     },
     Form: {
         package: 'javax.microedition.lcdui.Form',
+        extends: 'Screen',
         description: 'Screen that contains an arbitrary mixture of items.',
         methods: [
             { label: 'append', insertText: 'append(${1:Item})', documentation: 'Appends an item to the Form.', returns: 'int' },
@@ -35,8 +48,20 @@ const j2meClasses = {
             { label: 'size', insertText: 'size()', documentation: 'Gets the number of items in the Form.', returns: 'int' }
         ]
     },
+    Screen: {
+        package: 'javax.microedition.lcdui.Screen',
+        extends: 'Displayable',
+        description: 'Base class for high-level user interface classes.',
+        methods: [
+            { label: 'getTicker', insertText: 'getTicker()', documentation: 'Gets the ticker used by this Screen.', returns: 'Ticker' },
+            { label: 'setTicker', insertText: 'setTicker(${1:Ticker})', documentation: 'Sets a ticker for use with this Screen.', returns: 'void' },
+            { label: 'getTitle', insertText: 'getTitle()', documentation: 'Gets the title of the Screen.', returns: 'String' },
+            { label: 'setTitle', insertText: 'setTitle(${1:String})', documentation: 'Sets the title of the Screen.', returns: 'void' }
+        ]
+    },
     TextBox: {
         package: 'javax.microedition.lcdui.TextBox',
+        extends: 'Screen',
         description: 'Screen that allows user to enter and edit text.',
         methods: [
             { label: 'getString', insertText: 'getString()', documentation: 'Gets the contents of the TextBox as a string.', returns: 'String' },
@@ -51,6 +76,7 @@ const j2meClasses = {
     },
     Alert: {
         package: 'javax.microedition.lcdui.Alert',
+        extends: 'Screen',
         description: 'Screen that shows data to the user for a certain period of time.',
         methods: [
             { label: 'setTimeout', insertText: 'setTimeout(${1:int})', documentation: 'Sets the time for which the Alert is displayed.', returns: 'void' },
@@ -63,6 +89,7 @@ const j2meClasses = {
     },
     List: {
         package: 'javax.microedition.lcdui.List',
+        extends: 'Screen',
         description: 'Screen containing list of choices.',
         methods: [
             { label: 'append', insertText: 'append(${1:String}, ${2:Image})', documentation: 'Appends an element to the List.', returns: 'int' },
@@ -77,6 +104,7 @@ const j2meClasses = {
     },
     Command: {
         package: 'javax.microedition.lcdui.Command',
+        extends: 'Object',
         description: 'Represents an action that can be triggered by the user.',
         methods: [
             { label: 'getLabel', insertText: 'getLabel()', documentation: 'Gets the label of the command.', returns: 'String' },
@@ -86,6 +114,7 @@ const j2meClasses = {
     },
     Connector: {
         package: 'javax.microedition.io.Connector',
+        extends: 'Object',
         description: 'Factory class for creating Connection objects.',
         methods: [
             { label: 'open', insertText: 'open(${1:name})', documentation: 'Create and open a Connection.', returns: 'Connection' },
@@ -102,6 +131,7 @@ const j2meClasses = {
     },
     Connection: {
         package: 'javax.microedition.io.Connection',
+        extends: 'Object',
         description: 'Generic connection interface.',
         methods: [
             { label: 'close', insertText: 'close()', documentation: 'Close the connection.', returns: 'void' }
@@ -109,6 +139,7 @@ const j2meClasses = {
     },
     HttpConnection: {
         package: 'javax.microedition.io.HttpConnection',
+        extends: 'Connection',
         description: 'HTTP connection interface.',
         methods: [
             { label: 'setRequestMethod', insertText: 'setRequestMethod(${1:String})', documentation: 'Set the method for the URL request.', returns: 'void' },
@@ -126,6 +157,7 @@ const j2meClasses = {
     },
     MIDlet: {
         package: 'javax.microedition.midlet.MIDlet',
+        extends: 'Object',
         description: 'Base class for all MIDlets (J2ME applications).',
         methods: [
             { label: 'startApp', insertText: 'startApp()', documentation: 'Called when the MIDlet is started.', returns: 'void' },
@@ -140,6 +172,7 @@ const j2meClasses = {
     },
     RecordStore: {
         package: 'javax.microedition.rms.RecordStore',
+        extends: 'Object',
         description: 'Persistent storage for small amounts of data.',
         methods: [
             { label: 'openRecordStore', insertText: 'openRecordStore(${1:name}, ${2:create})', documentation: 'Opens a record store.', returns: 'RecordStore' },
@@ -155,28 +188,9 @@ const j2meClasses = {
             { label: 'listRecordStores', insertText: 'listRecordStores()', documentation: 'Returns an array of the names of record stores owned by the MIDlet suite.', returns: 'String[]' }
         ]
     },
-    RecordStoreException: {
-        package: 'javax.microedition.rms.RecordStoreException',
-        description: 'Thrown to indicate a general exception occurred in a record store operation.',
-        methods: []
-    },
-    RecordStoreNotFoundException: {
-        package: 'javax.microedition.rms.RecordStoreNotFoundException',
-        description: 'Thrown when a record store could not be found.',
-        methods: []
-    },
-    RecordStoreFullException: {
-        package: 'javax.microedition.rms.RecordStoreFullException',
-        description: 'Thrown when the record store is full.',
-        methods: []
-    },
-    InvalidRecordIDException: {
-        package: 'javax.microedition.rms.InvalidRecordIDException',
-        description: 'Thrown when an operation is attempted on a record ID that is invalid.',
-        methods: []
-    },
     Timer: {
         package: 'java.util.Timer',
+        extends: 'Object',
         description: 'Facility for threads to schedule tasks for future execution.',
         methods: [
             { label: 'schedule', insertText: 'schedule(${1:TimerTask}, ${2:Date})', documentation: 'Schedules the specified task for execution at the specified time.', returns: 'void' },
@@ -186,6 +200,7 @@ const j2meClasses = {
     },
     TimerTask: {
         package: 'java.util.TimerTask',
+        extends: 'Object',
         description: 'Task that can be scheduled for one-time or repeated execution by a Timer.',
         methods: [
             { label: 'run', insertText: 'run()', documentation: 'The action to be performed by this timer task.', returns: 'void' },
@@ -195,6 +210,7 @@ const j2meClasses = {
     },
     Runnable: {
         package: 'java.lang.Runnable',
+        extends: 'Object',
         description: 'Interface that should be implemented by any class whose instances are intended to be executed by a thread.',
         methods: [
             { label: 'run', insertText: 'run()', documentation: 'When an object implementing interface Runnable is used to create a thread, starting the thread causes the run method to be called.', returns: 'void' }
@@ -202,6 +218,7 @@ const j2meClasses = {
     },
     Thread: {
         package: 'java.lang.Thread',
+        extends: 'Object',
         description: 'A thread of execution in a program.',
         methods: [
             { label: 'start', insertText: 'start()', documentation: 'Causes this thread to begin execution.', returns: 'void' },
@@ -213,43 +230,9 @@ const j2meClasses = {
             { label: 'getPriority', insertText: 'getPriority()', documentation: 'Returns this threads priority.', returns: 'int' }
         ]
     },
-    IOException: {
-        package: 'java.io.IOException',
-        description: 'Signals that an I/O exception of some sort has occurred.',
-        methods: [
-            { label: 'getMessage', insertText: 'getMessage()', documentation: 'Returns the detail message string of this throwable.', returns: 'String' }
-        ]
-    },
-    IllegalArgumentException: {
-        package: 'java.lang.IllegalArgumentException',
-        description: 'Thrown to indicate that a method has been passed an illegal or inappropriate argument.',
-        methods: [
-            { label: 'getMessage', insertText: 'getMessage()', documentation: 'Returns the detail message string of this throwable.', returns: 'String' }
-        ]
-    },
-    IllegalStateException: {
-        package: 'java.lang.IllegalStateException',
-        description: 'Signals that a method has been invoked at an illegal or inappropriate time.',
-        methods: [
-            { label: 'getMessage', insertText: 'getMessage()', documentation: 'Returns the detail message string of this throwable.', returns: 'String' }
-        ]
-    },
-    NullPointerException: {
-        package: 'java.lang.NullPointerException',
-        description: 'Thrown when an application attempts to use null in a case where an object is required.',
-        methods: [
-            { label: 'getMessage', insertText: 'getMessage()', documentation: 'Returns the detail message string of this throwable.', returns: 'String' }
-        ]
-    },
-    ArrayIndexOutOfBoundsException: {
-        package: 'java.lang.ArrayIndexOutOfBoundsException',
-        description: 'Thrown to indicate that an array has been accessed with an illegal index.',
-        methods: [
-            { label: 'getMessage', insertText: 'getMessage()', documentation: 'Returns the detail message string of this throwable.', returns: 'String' }
-        ]
-    },
     String: {
         package: 'java.lang.String',
+        extends: 'Object',
         description: 'Represents a string of characters.',
         methods: [
             { label: 'length', insertText: 'length()', documentation: 'Returns the length of this string.', returns: 'int' },
@@ -266,6 +249,7 @@ const j2meClasses = {
     },
     System: {
         package: 'java.lang.System',
+        extends: 'Object',
         description: 'Contains several useful class fields and methods.',
         methods: [
             { label: 'currentTimeMillis', insertText: 'currentTimeMillis()', documentation: 'Returns the current time in milliseconds.', returns: 'long' },
@@ -275,6 +259,7 @@ const j2meClasses = {
     },
     Math: {
         package: 'java.lang.Math',
+        extends: 'Object',
         description: 'Contains methods for performing basic numeric operations.',
         methods: [
             { label: 'abs', insertText: 'abs(${1:int})', documentation: 'Returns the absolute value of an int value.', returns: 'int' },
@@ -286,6 +271,7 @@ const j2meClasses = {
     },
     Vector: {
         package: 'java.util.Vector',
+        extends: 'Object',
         description: 'Implements a growable array of objects.',
         methods: [
             { label: 'addElement', insertText: 'addElement(${1:Object})', documentation: 'Adds the specified component to the end of this vector.', returns: 'void' },
@@ -299,6 +285,7 @@ const j2meClasses = {
     },
     Hashtable: {
         package: 'java.util.Hashtable',
+        extends: 'Object',
         description: 'Implements a hashtable, which maps keys to values.',
         methods: [
             { label: 'put', insertText: 'put(${1:Object}, ${2:Object})', documentation: 'Maps the specified key to the specified value in this hashtable.', returns: 'Object' },
@@ -311,33 +298,132 @@ const j2meClasses = {
             { label: 'keys', insertText: 'keys()', documentation: 'Returns an enumeration of the keys in this hashtable.', returns: 'Enumeration' },
             { label: 'elements', insertText: 'elements()', documentation: 'Returns an enumeration of the values in this hashtable.', returns: 'Enumeration' }
         ]
+    },
+    Throwable: {
+        package: 'java.lang.Throwable',
+        extends: 'Object',
+        description: 'The Throwable class is the superclass of all errors and exceptions.',
+        methods: [
+            { label: 'getMessage', insertText: 'getMessage()', documentation: 'Returns the detail message string of this throwable.', returns: 'String' },
+            { label: 'toString', insertText: 'toString()', documentation: 'Returns a short description of this throwable.', returns: 'String' },
+            { label: 'printStackTrace', insertText: 'printStackTrace()', documentation: 'Prints this throwable and its backtrace to the standard error stream.', returns: 'void' }
+        ]
+    },
+    Exception: {
+        package: 'java.lang.Exception',
+        extends: 'Throwable',
+        description: 'The class Exception and its subclasses are a form of Throwable.',
+        methods: []
+    },
+    IOException: {
+        package: 'java.io.IOException',
+        extends: 'Exception',
+        description: 'Signals that an I/O exception of some sort has occurred.',
+        methods: []
+    },
+    RuntimeException: {
+        package: 'java.lang.RuntimeException',
+        extends: 'Exception',
+        description: 'RuntimeException is the superclass of those exceptions that can be thrown during the normal operation of the Java Virtual Machine.',
+        methods: []
+    },
+    IllegalArgumentException: {
+        package: 'java.lang.IllegalArgumentException',
+        extends: 'RuntimeException',
+        description: 'Thrown to indicate that a method has been passed an illegal or inappropriate argument.',
+        methods: []
+    },
+    IllegalStateException: {
+        package: 'java.lang.IllegalStateException',
+        extends: 'RuntimeException',
+        description: 'Signals that a method has been invoked at an illegal or inappropriate time.',
+        methods: []
+    },
+    NullPointerException: {
+        package: 'java.lang.NullPointerException',
+        extends: 'RuntimeException',
+        description: 'Thrown when an application attempts to use null in a case where an object is required.',
+        methods: []
+    },
+    ArrayIndexOutOfBoundsException: {
+        package: 'java.lang.ArrayIndexOutOfBoundsException',
+        extends: 'RuntimeException',
+        description: 'Thrown to indicate that an array has been accessed with an illegal index.',
+        methods: []
+    },
+    IndexOutOfBoundsException: {
+        package: 'java.lang.IndexOutOfBoundsException',
+        extends: 'RuntimeException',
+        description: 'Thrown to indicate that an index of some sort (such as to an array, to a string, or to a vector) is out of range.',
+        methods: []
     }
 };
+
+// Garante que todas as classes tenham pelo menos os métodos básicos do Object
+function applyInheritance() {
+    Object.keys(j2meClasses).forEach(className => {
+        const classDef = j2meClasses[className];
+        let allMethods = [];
+        
+        // Coleta métodos da hierarquia de herança
+        let currentClass = classDef;
+        while (currentClass) {
+            if (currentClass.methods) {
+                allMethods = [...currentClass.methods, ...allMethods];
+            }
+            if (currentClass.extends && j2meClasses[currentClass.extends]) {
+                currentClass = j2meClasses[currentClass.extends];
+            } else {
+                currentClass = null;
+            }
+        }
+        
+        // Remove métodos duplicados (mantém a implementação mais específica)
+        const uniqueMethods = [];
+        const seenMethods = new Set();
+        
+        allMethods.forEach(method => {
+            if (!seenMethods.has(method.label)) {
+                seenMethods.add(method.label);
+                uniqueMethods.push(method);
+            }
+        });
+        
+        // Atualiza os métodos da classe
+        classDef.allMethods = uniqueMethods;
+    });
+}
+
+applyInheritance();
 
 function getExtendedClasses(document) {
     const text = document.getText();
     const extendedClasses = [];
-
+    
     const extendsMatch = text.match(/class\s+\w+\s+extends\s+([^{]+)/);
     if (extendsMatch) {
         const classesStr = extendsMatch[1].trim();
         const classes = classesStr.split(',').map(cls => cls.trim());
         
         classes.forEach(className => {
+            // Remove generic types e espaços extras
             const cleanName = className.replace(/<[^>]*>/g, '').trim();
-            if (j2meClasses[cleanName]) { extendedClasses.push(cleanName); }
+            if (j2meClasses[cleanName]) {
+                extendedClasses.push(cleanName);
+            }
         });
     }
     
     return extendedClasses;
 }
+
 function getInheritedMethods(extendedClasses) {
     const inheritedMethods = [];
     
     extendedClasses.forEach(className => {
         const cls = j2meClasses[className];
-        if (cls && cls.methods) {
-            cls.methods.forEach(method => {
+        if (cls && cls.allMethods) {
+            cls.allMethods.forEach(method => {
                 inheritedMethods.push({
                     ...method,
                     inheritedFrom: className
@@ -385,8 +471,8 @@ function createSymbolsFromHierarchy(hierarchy, parentName = '') {
                 new vscode.Range(0, 0, 0, 10) 
             );
             
-            if (cls.methods && cls.methods.length > 0) {
-                cls.methods.forEach(method => {
+            if (cls.allMethods && cls.allMethods.length > 0) {
+                cls.allMethods.forEach(method => {
                     const methodSymbol = new vscode.DocumentSymbol(
                         method.label,
                         `${method.documentation} → ${method.returns}`,
@@ -431,7 +517,7 @@ function getTypeAtPosition(document, position) {
         const methodName = chainParts[i].replace(/\(\)/g, '');
         const cls = j2meClasses[currentType];
         if (!cls) return null;
-        const method = cls.methods.find(m => m.label === methodName);
+        const method = cls.allMethods?.find(m => m.label === methodName);
         if (!method) return null;
         currentType = method.returns;
     }
