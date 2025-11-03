@@ -401,7 +401,6 @@ function buildPackageHierarchy() {
                 currentLevel[part] = {};
             }
             if (index === packageParts.length - 1) {
-                // Armazena a classe completa no nó final
                 currentLevel[part]._class = {
                     name: className,
                     ...classDef
@@ -422,7 +421,6 @@ function createSymbolsFromHierarchy(hierarchy, parentName = '') {
         const node = hierarchy[key];
         
         if (node._class) {
-            // É uma classe
             const cls = node._class;
             
             const symbol = new vscode.DocumentSymbol(
@@ -433,10 +431,10 @@ function createSymbolsFromHierarchy(hierarchy, parentName = '') {
                 new vscode.Range(0, 0, 0, 10)
             );
             
-            // Adiciona todos os métodos (incluindo herdados)
-            const allMethods = getAllMethods(cls.name);
-            if (allMethods && allMethods.length > 0) {
-                allMethods.forEach(method => {
+            // Adiciona apenas métodos próprios da classe, não os herdados de Object
+            const ownMethods = cls.methods || [];
+            if (ownMethods.length > 0) {
+                ownMethods.forEach(method => {
                     const methodSymbol = new vscode.DocumentSymbol(
                         method.label,
                         `${method.documentation} → ${method.returns}`,
@@ -445,19 +443,12 @@ function createSymbolsFromHierarchy(hierarchy, parentName = '') {
                         new vscode.Range(0, 0, 0, 10)
                     );
                     methodSymbol.detail = method.returns;
-                    
-                    // Adiciona informação de herança se for o caso
-                    if (method.inheritedFrom && method.inheritedFrom !== cls.name) {
-                        methodSymbol.detail += ` (Inherited from ${method.inheritedFrom})`;
-                    }
-                    
                     symbol.children.push(methodSymbol);
                 });
             }
             
             symbols.push(symbol);
         } else {
-            // É um pacote
             const packageSymbol = new vscode.DocumentSymbol(
                 key,
                 `Package: ${fullName}`,
@@ -466,7 +457,6 @@ function createSymbolsFromHierarchy(hierarchy, parentName = '') {
                 new vscode.Range(0, 0, 0, 10)
             );
 
-            // Processa recursivamente os filhos
             const childSymbols = createSymbolsFromHierarchy(node, fullName);
             packageSymbol.children = childSymbols;
             
@@ -477,16 +467,13 @@ function createSymbolsFromHierarchy(hierarchy, parentName = '') {
     return symbols;
 }
 
-// Sistema de inferência de tipos
 function inferVariableType(document, position, variableName) {
     const text = document.getText();
     const lines = text.split('\n');
     
-    // Analisa as linhas acima da posição atual
     for (let i = position.line; i >= 0; i--) {
         const line = lines[i];
         
-        // Procura por declarações de variáveis: "Tipo nome ="
         const varDeclRegex = new RegExp(`(\\w+)\\s+${variableName}\\s*=`);
         const match = line.match(varDeclRegex);
         
@@ -497,7 +484,6 @@ function inferVariableType(document, position, variableName) {
             }
         }
         
-        // Procura por assignments: "nome = new Tipo("
         const newInstanceRegex = new RegExp(`${variableName}\\s*=\\s*new\\s+(\\w+)`);
         const newMatch = line.match(newInstanceRegex);
         
@@ -508,7 +494,6 @@ function inferVariableType(document, position, variableName) {
             }
         }
         
-        // Procura por casts: "(Tipo) nome." ou "nome = (Tipo)"
         const castRegex = new RegExp(`\\(\\s*(\\w+)\\s*\\)\\s*${variableName}`);
         const castMatch = line.match(castRegex);
         
@@ -519,7 +504,6 @@ function inferVariableType(document, position, variableName) {
             }
         }
         
-        // Procura por parâmetros de método: "void method(Tipo nome)"
         const paramRegex = new RegExp(`\\([^)]*?(\\w+)\\s+${variableName}[^)]*\\)`);
         const paramMatch = line.match(paramRegex);
         
@@ -537,7 +521,6 @@ function inferVariableType(document, position, variableName) {
 function getTypeAtPosition(document, position) {
     const lineText = document.lineAt(position.line).text.substring(0, position.character);
     
-    // Caso 1: Acesso direto por classe "ClassName."
     const classAccessMatch = lineText.match(/(\w+)\.$/);
     if (classAccessMatch) {
         const className = classAccessMatch[1];
@@ -546,25 +529,21 @@ function getTypeAtPosition(document, position) {
         }
     }
     
-    // Caso 2: Acesso por variável "variableName."
     const varAccessMatch = lineText.match(/([a-zA-Z_][a-zA-Z0-9_]*)\.$/);
     if (varAccessMatch) {
         const varName = varAccessMatch[1];
         
-        // Tenta inferir o tipo da variável
         const varType = inferVariableType(document, position, varName);
         if (varType) {
             return varType;
         }
         
-        // Se não conseguiu inferir, tenta métodos de retorno conhecido
         const methodChainMatch = lineText.match(/((?:\w+\.)*)([a-zA-Z_][a-zA-Z0-9_]*)\.$/);
         if (methodChainMatch) {
             const prefix = methodChainMatch[1];
             const lastVar = methodChainMatch[2];
             
             if (prefix) {
-                // Resolve cadeia de métodos
                 const chainParts = prefix.split('.').filter(Boolean);
                 let currentType = chainParts[0];
                 
@@ -583,7 +562,6 @@ function getTypeAtPosition(document, position) {
         }
     }
     
-    // Caso 3: Cadeia de métodos "obj.method1().method2()."
     const chainMatch = lineText.match(/((?:\w+\.)*\w+\(\)\s*\.)*(\w+\(\)\s*\.)$/);
     if (chainMatch) {
         const fullChain = chainMatch[0];
@@ -591,20 +569,17 @@ function getTypeAtPosition(document, position) {
         
         let currentType = null;
         
-        // Encontra o tipo inicial
         const beforeChain = lineText.replace(fullChain, '');
         const lastPart = beforeChain.split('.').pop();
         if (lastPart && j2meClasses[lastPart]) {
             currentType = lastPart;
         } else {
-            // Tenta inferir do contexto
             const contextMatch = beforeChain.match(/([a-zA-Z_][a-zA-Z0-9_]*)$/);
             if (contextMatch) {
                 currentType = inferVariableType(document, position, contextMatch[1]);
             }
         }
         
-        // Resolve a cadeia de métodos
         if (currentType) {
             for (const methodCall of methodCalls) {
                 const methodName = methodCall.replace('()', '').trim();
@@ -628,6 +603,7 @@ function getCompletionItems(type) {
         return [];
     }
     
+    // Para sugestões, inclui TODOS os métodos (incluindo herdados de Object)
     const methods = getAllMethods(type);
     return methods.map(method => {
         const item = new vscode.CompletionItem(method.label, vscode.CompletionItemKind.Method);
@@ -641,7 +617,6 @@ function getCompletionItems(type) {
     });
 }
 
-// Funções auxiliares para outros módulos
 function getExtendedClasses(document) {
     const text = document.getText();
     const extendedClasses = [];
@@ -662,6 +637,27 @@ function getExtendedClasses(document) {
     return extendedClasses;
 }
 
-function getInheritedMethods(extendedClasses) { const inheritedMethods = []; extendedClasses.forEach(className => { const methods = getAllMethods(className); methods.forEach(method => { inheritedMethods.push({ ...method, inheritedFrom: className }); }); }); return inheritedMethods; }
+function getInheritedMethods(extendedClasses) {
+    const inheritedMethods = [];
+    extendedClasses.forEach(className => {
+        const methods = getAllMethods(className);
+        methods.forEach(method => {
+            inheritedMethods.push({
+                ...method,
+                inheritedFrom: className
+            });
+        });
+    });
+    return inheritedMethods;
+}
 
-module.exports = { j2meClasses, buildPackageHierarchy, createSymbolsFromHierarchy, getTypeAtPosition, getCompletionItems, getExtendedClasses, getInheritedMethods, getAllMethods };
+module.exports = {
+    j2meClasses,
+    buildPackageHierarchy,
+    createSymbolsFromHierarchy,
+    getTypeAtPosition,
+    getCompletionItems,
+    getExtendedClasses,
+    getInheritedMethods,
+    getAllMethods
+};
