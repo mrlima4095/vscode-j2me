@@ -470,12 +470,34 @@ function inferVariableType(document, position, variableName) {
     const text = document.getText();
     const lines = text.split('\n');
     
+    // Primeiro verifica se é uma variável global da classe
+    const globalType = findGlobalVariableType(document, variableName);
+    if (globalType) {
+        return globalType;
+    }
+    
+    // Depois verifica no escopo local da função
+    const currentFunctionScope = findCurrentFunctionScope(document, position);
+    
     for (let i = position.line; i >= 0; i--) {
         const line = lines[i];
         
+        // Verifica se estamos ainda no mesmo escopo da função
+        if (currentFunctionScope && i < currentFunctionScope.startLine) {
+            break;
+        }
+        
+        const multiVarDeclRegex = new RegExp(`(\\w+)\\s+([\\w,\\s]+?${variableName}[\\w,\\s]*?)\\s*=`);
+        const multiMatch = line.match(multiVarDeclRegex);
+        if (multiMatch) {
+            const type = multiMatch[1];
+            if (j2meClasses[type]) {
+                return type;
+            }
+        }
+        
         const varDeclRegex = new RegExp(`(\\w+)\\s+${variableName}\\s*=`);
         const match = line.match(varDeclRegex);
-        
         if (match) {
             const type = match[1];
             if (j2meClasses[type]) {
@@ -483,31 +505,37 @@ function inferVariableType(document, position, variableName) {
             }
         }
         
+        const varDeclNoAssignRegex = new RegExp(`(\\w+)\\s+${variableName}(?:\\s*[;,])`);
+        const matchNoAssign = line.match(varDeclNoAssignRegex);
+        if (matchNoAssign) {
+            const type = matchNoAssign[1];
+            if (j2meClasses[type]) {
+                return type;
+            }
+        }
+
+        const paramRegex = new RegExp(`\\([^)]*?(\\w+)\\s+${variableName}\\b[^)]*\\)`);
+        const paramMatch = line.match(paramRegex);
+        if (paramMatch) {
+            const type = paramMatch[1];
+            if (j2meClasses[type]) {
+                return type;
+            }
+        }
+
         const newInstanceRegex = new RegExp(`${variableName}\\s*=\\s*new\\s+(\\w+)`);
         const newMatch = line.match(newInstanceRegex);
-        
         if (newMatch) {
             const type = newMatch[1];
             if (j2meClasses[type]) {
                 return type;
             }
         }
-        
+
         const castRegex = new RegExp(`\\(\\s*(\\w+)\\s*\\)\\s*${variableName}`);
         const castMatch = line.match(castRegex);
-        
         if (castMatch) {
             const type = castMatch[1];
-            if (j2meClasses[type]) {
-                return type;
-            }
-        }
-        
-        const paramRegex = new RegExp(`\\([^)]*?(\\w+)\\s+${variableName}[^)]*\\)`);
-        const paramMatch = line.match(paramRegex);
-        
-        if (paramMatch) {
-            const type = paramMatch[1];
             if (j2meClasses[type]) {
                 return type;
             }
@@ -517,6 +545,120 @@ function inferVariableType(document, position, variableName) {
     return null;
 }
 
+function findGlobalVariableType(document, variableName) {
+    const text = document.getText();
+    const lines = text.split('\n');
+    
+    // Procura por variáveis globais da classe (fora de métodos)
+    let inClass = false;
+    let inMethod = false;
+    let braceCount = 0;
+    
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        
+        // Detecta início da classe
+        if (line.match(/class\s+\w+/)) {
+            inClass = true;
+            continue;
+        }
+        
+        if (!inClass) continue;
+        
+        // Detecta início de método
+        if (line.match(/(public|protected|private|static|final)?\s*\w+\s+(\w+)\s*\([^)]*\)\s*\{/)) {
+            inMethod = true;
+            braceCount = 1;
+            continue;
+        }
+        
+        // Conta chaves para detectar fim do método
+        if (inMethod) {
+            for (const char of line) {
+                if (char === '{') braceCount++;
+                if (char === '}') braceCount--;
+            }
+            if (braceCount === 0) {
+                inMethod = false;
+            }
+            continue;
+        }
+        
+        // Se estamos na classe mas fora de métodos, procura por variáveis globais
+        if (inClass && !inMethod) {
+            const fieldDeclRegex = new RegExp(`(?:public|protected|private|static|final)\\s+(\\w+)\\s+${variableName}(?:\\s*[;=]|\\s*,\\s*|\\s*$)`);
+            const fieldMatch = line.match(fieldDeclRegex);
+            if (fieldMatch) {
+                const type = fieldMatch[1];
+                if (j2meClasses[type]) {
+                    return type;
+                }
+            }
+            
+            // Também verifica declarações sem modificadores
+            const simpleDeclRegex = new RegExp(`(\\w+)\\s+${variableName}\\s*[;=]`);
+            const simpleMatch = line.match(simpleDeclRegex);
+            if (simpleMatch) {
+                const type = simpleMatch[1];
+                if (j2meClasses[type]) {
+                    return type;
+                }
+            }
+        }
+        
+        // Detecta fim da classe
+        if (line === '}' && inClass && !inMethod) {
+            break;
+        }
+    }
+    
+    return null;
+}
+
+function findCurrentFunctionScope(document, position) {
+    const text = document.getText();
+    const lines = text.split('\n');
+    
+    let braceCount = 0;
+    let functionStartLine = -1;
+    let inFunction = false;
+    
+    // Procura pela função atual baseado na posição do cursor
+    for (let i = position.line; i >= 0; i--) {
+        const line = lines[i];
+        
+        // Encontra o início da função (linha com { ou declaração de método)
+        if ((line.includes('{') || line.match(/(public|protected|private|static|final)?\s*\w+\s+(\w+)\s*\([^)]*\)/)) && !inFunction) {
+            // Verifica se é uma declaração de função/método
+            for (let j = i; j >= Math.max(0, i - 3); j--) {
+                const prevLine = lines[j];
+                if (prevLine.match(/(public|protected|private|static|final)?\s*\w+\s+(\w+)\s*\([^)]*\)/)) {
+                    functionStartLine = j;
+                    inFunction = true;
+                    break;
+                }
+            }
+        }
+        
+        if (inFunction) {
+            // Conta as chaves para determinar o escopo
+            for (const char of line) {
+                if (char === '{') braceCount++;
+                if (char === '}') braceCount--;
+            }
+            
+            // Se chegamos ao início da função e as chaves estão balanceadas, encontramos o escopo
+            if (i === functionStartLine && braceCount <= 0) {
+                return {
+                    startLine: functionStartLine,
+                    endLine: position.line
+                };
+            }
+        }
+    }
+    
+    return null;
+}
 function getTypeAtPosition(document, position) {
     const lineText = document.lineAt(position.line).text.substring(0, position.character);
     
