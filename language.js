@@ -602,15 +602,8 @@ function getCompletionItems(type) {
         return [];
     }
     
-    // Se o tipo não for encontrado nas classes J2ME, tenta incluir métodos de Object
-    let methods = [];
-    
-    if (j2meClasses[type]) {
-        methods = getAllMethods(type);
-    } else {
-        // Para tipos desconhecidos, oferece pelo menos métodos básicos de Object
-        methods = getAllMethods('Object');
-    }
+    // Usa getAllMethods que já inclui Object e todas as heranças
+    const methods = j2meClasses[type] ? getAllMethods(type) : getAllMethods('Object');
     
     return methods.map(method => {
         const item = new vscode.CompletionItem(method.label, vscode.CompletionItemKind.Method);
