@@ -359,7 +359,6 @@ const j2meClasses = {
     }
 };
 
-// Cache de métodos herdados
 const methodCache = new Map();
 
 function getAllMethods(className) {
@@ -663,29 +662,6 @@ function getExtendedClasses(document) {
     return extendedClasses;
 }
 
-function getInheritedMethods(extendedClasses) {
-    const inheritedMethods = [];
-    
-    extendedClasses.forEach(className => {
-        const methods = getAllMethods(className);
-        methods.forEach(method => {
-            inheritedMethods.push({
-                ...method,
-                inheritedFrom: className
-            });
-        });
-    });
-    
-    return inheritedMethods;
-}
+function getInheritedMethods(extendedClasses) { const inheritedMethods = []; extendedClasses.forEach(className => { const methods = getAllMethods(className); methods.forEach(method => { inheritedMethods.push({ ...method, inheritedFrom: className }); }); }); return inheritedMethods; }
 
-module.exports = {
-    j2meClasses,
-    buildPackageHierarchy,
-    createSymbolsFromHierarchy,
-    getTypeAtPosition,
-    getCompletionItems,
-    getExtendedClasses,
-    getInheritedMethods,
-    getAllMethods
-};
+module.exports = { j2meClasses, buildPackageHierarchy, createSymbolsFromHierarchy, getTypeAtPosition, getCompletionItems, getExtendedClasses, getInheritedMethods, getAllMethods };
