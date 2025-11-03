@@ -602,8 +602,28 @@ function getCompletionItems(type) {
         return [];
     }
     
-    // Usa getAllMethods que já inclui Object e todas as heranças
-    const methods = j2meClasses[type] ? getAllMethods(type) : getAllMethods('Object');
+    let methods = [];
+    
+    if (j2meClasses[type]) {
+        // Pega todos os métodos do tipo (já inclui Object por causa do getAllMethods)
+        methods = getAllMethods(type);
+    } else {
+        // Para tipos desconhecidos, oferece métodos de Object
+        methods = getAllMethods('Object');
+    }
+    
+    // Se o tipo não for Object, adiciona também os métodos específicos de Object
+    if (type !== 'Object' && j2meClasses[type]) {
+        const objectMethods = getAllMethods('Object');
+        // Junta os métodos, evitando duplicatas
+        const allMethods = [...methods];
+        objectMethods.forEach(objMethod => {
+            if (!allMethods.some(m => m.label === objMethod.label)) {
+                allMethods.push(objMethod);
+            }
+        });
+        methods = allMethods;
+    }
     
     return methods.map(method => {
         const item = new vscode.CompletionItem(method.label, vscode.CompletionItemKind.Method);
