@@ -431,21 +431,19 @@ function createSymbolsFromHierarchy(hierarchy, parentName = '') {
                 new vscode.Range(0, 0, 0, 10)
             );
             
-            // Adiciona apenas métodos próprios da classe, não os herdados de Object
-            const ownMethods = cls.methods || [];
-            if (ownMethods.length > 0) {
-                ownMethods.forEach(method => {
-                    const methodSymbol = new vscode.DocumentSymbol(
-                        method.label,
-                        `${method.documentation} → ${method.returns}`,
-                        vscode.SymbolKind.Method,
-                        new vscode.Range(0, 0, 0, 10),
-                        new vscode.Range(0, 0, 0, 10)
-                    );
-                    methodSymbol.detail = method.returns;
-                    symbol.children.push(methodSymbol);
-                });
-            }
+            const allMethods = getAllMethods(cls.name);
+            
+            allMethods.forEach(method => {
+                const methodSymbol = new vscode.DocumentSymbol(
+                    method.label,
+                    `${method.documentation} → ${method.returns}`,
+                    vscode.SymbolKind.Method,
+                    new vscode.Range(0, 0, 0, 10),
+                    new vscode.Range(0, 0, 0, 10)
+                );
+                methodSymbol.detail = method.returns;
+                symbol.children.push(methodSymbol);
+            });
             
             symbols.push(symbol);
         } else {
