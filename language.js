@@ -431,19 +431,20 @@ function createSymbolsFromHierarchy(hierarchy, parentName = '') {
                 new vscode.Range(0, 0, 0, 10)
             );
             
-            const allMethods = getAllMethods(cls.name);
-            
-            allMethods.forEach(method => {
-                const methodSymbol = new vscode.DocumentSymbol(
-                    method.label,
-                    `${method.documentation} → ${method.returns}`,
-                    vscode.SymbolKind.Method,
-                    new vscode.Range(0, 0, 0, 10),
-                    new vscode.Range(0, 0, 0, 10)
-                );
-                methodSymbol.detail = method.returns;
-                symbol.children.push(methodSymbol);
-            });
+            const ownMethods = cls.methods || [];
+            if (ownMethods.length > 0) {
+                ownMethods.forEach(method => {
+                    const methodSymbol = new vscode.DocumentSymbol(
+                        method.label,
+                        `${method.documentation} → ${method.returns}`,
+                        vscode.SymbolKind.Method,
+                        new vscode.Range(0, 0, 0, 10),
+                        new vscode.Range(0, 0, 0, 10)
+                    );
+                    methodSymbol.detail = method.returns;
+                    symbol.children.push(methodSymbol);
+                });
+            }
             
             symbols.push(symbol);
         } else {
@@ -597,12 +598,20 @@ function getTypeAtPosition(document, position) {
 }
 
 function getCompletionItems(type) {
-    if (!type || !j2meClasses[type]) {
+    if (!type) {
         return [];
     }
     
-    // Para sugestões, inclui TODOS os métodos (incluindo herdados de Object)
-    const methods = getAllMethods(type);
+    // Se o tipo não for encontrado nas classes J2ME, tenta incluir métodos de Object
+    let methods = [];
+    
+    if (j2meClasses[type]) {
+        methods = getAllMethods(type);
+    } else {
+        // Para tipos desconhecidos, oferece pelo menos métodos básicos de Object
+        methods = getAllMethods('Object');
+    }
+    
     return methods.map(method => {
         const item = new vscode.CompletionItem(method.label, vscode.CompletionItemKind.Method);
         item.insertText = new vscode.SnippetString(method.insertText);
