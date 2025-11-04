@@ -466,7 +466,78 @@ function createSymbolsFromHierarchy(hierarchy, parentName = '') {
     return symbols;
 }
 
+// Nova função para verificar se a posição está dentro de comentário ou string
+function isInCommentOrString(document, position) {
+    const text = document.getText();
+    const offset = document.offsetAt(position);
+    
+    // Verifica se está dentro de comentário de linha
+    const lineText = document.lineAt(position.line).text;
+    const lineCommentIndex = lineText.indexOf('//');
+    if (lineCommentIndex !== -1 && position.character > lineCommentIndex) {
+        return true;
+    }
+    
+    // Para comentários de bloco e strings, analisamos o texto até a posição atual
+    const textUntilPosition = text.substring(0, offset);
+    
+    // Verifica comentários de bloco /* */
+    let inBlockComment = false;
+    let inString = false;
+    let escapeNext = false;
+    let stringChar = null;
+    
+    for (let i = 0; i < textUntilPosition.length; i++) {
+        const char = textUntilPosition[i];
+        const nextChar = textUntilPosition[i + 1];
+        
+        if (escapeNext) {
+            escapeNext = false;
+            continue;
+        }
+        
+        if (inString) {
+            if (char === '\\') {
+                escapeNext = true;
+            } else if (char === stringChar) {
+                inString = false;
+                stringChar = null;
+            }
+            continue;
+        }
+        
+        if (inBlockComment) {
+            if (char === '*' && nextChar === '/') {
+                inBlockComment = false;
+                i++; // Pular o próximo caractere
+            }
+            continue;
+        }
+        
+        // Verificar início de string
+        if (char === '"' || char === "'") {
+            inString = true;
+            stringChar = char;
+            continue;
+        }
+        
+        // Verificar início de comentário de bloco
+        if (char === '/' && nextChar === '*') {
+            inBlockComment = true;
+            i++; // Pular o próximo caractere
+            continue;
+        }
+    }
+    
+    return inBlockComment || inString;
+}
+
 function inferVariableType(document, position, variableName) {
+    // Se estiver em comentário ou string, não inferir tipo
+    if (isInCommentOrString(document, position)) {
+        return null;
+    }
+    
     const text = document.getText();
     const lines = text.split('\n');
     
@@ -485,6 +556,11 @@ function inferVariableType(document, position, variableName) {
         // Verifica se estamos ainda no mesmo escopo da função
         if (currentFunctionScope && i < currentFunctionScope.startLine) {
             break;
+        }
+        
+        // Pular linhas que são comentários completos
+        if (line.trim().startsWith('//')) {
+            continue;
         }
         
         const multiVarDeclRegex = new RegExp(`(\\w+)\\s+([\\w,\\s]+?${variableName}[\\w,\\s]*?)\\s*=`);
@@ -557,6 +633,11 @@ function findGlobalVariableType(document, variableName) {
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i].trim();
         
+        // Pular linhas de comentário
+        if (line.startsWith('//')) {
+            continue;
+        }
+        
         // Detecta início da classe
         if (line.match(/class\s+\w+/)) {
             inClass = true;
@@ -586,6 +667,9 @@ function findGlobalVariableType(document, variableName) {
         
         // Se estamos na classe mas fora de métodos, procura por variáveis globais
         if (inClass && !inMethod) {
+            // Pular linhas que são comentários
+            if (line.startsWith('//')) continue;
+            
             const fieldDeclRegex = new RegExp(`(?:public|protected|private|static|final)\\s+(\\w+)\\s+${variableName}(?:\\s*[;=]|\\s*,\\s*|\\s*$)`);
             const fieldMatch = line.match(fieldDeclRegex);
             if (fieldMatch) {
@@ -627,6 +711,11 @@ function findCurrentFunctionScope(document, position) {
     for (let i = position.line; i >= 0; i--) {
         const line = lines[i];
         
+        // Pular linhas de comentário
+        if (line.trim().startsWith('//')) {
+            continue;
+        }
+        
         // Encontra o início da função (linha com { ou declaração de método)
         if ((line.includes('{') || line.match(/(public|protected|private|static|final)?\s*\w+\s+(\w+)\s*\([^)]*\)/)) && !inFunction) {
             // Verifica se é uma declaração de função/método
@@ -659,7 +748,13 @@ function findCurrentFunctionScope(document, position) {
     
     return null;
 }
+
 function getTypeAtPosition(document, position) {
+    // Se estiver em comentário ou string, não retornar tipo
+    if (isInCommentOrString(document, position)) {
+        return null;
+    }
+    
     const lineText = document.lineAt(position.line).text.substring(0, position.character);
     
     const classAccessMatch = lineText.match(/(\w+)\.$/);
@@ -812,5 +907,6 @@ module.exports = {
     getCompletionItems,
     getExtendedClasses,
     getInheritedMethods,
-    getAllMethods
+    getAllMethods,
+    isInCommentOrString // Exportando a nova função
 };
