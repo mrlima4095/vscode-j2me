@@ -466,7 +466,6 @@ function createSymbolsFromHierarchy(hierarchy, parentName = '') {
     return symbols;
 }
 
-// Nova função para verificar se a posição está dentro de comentário ou string
 function isInCommentOrString(document, position) {
     const text = document.getText();
     const offset = document.offsetAt(position);
@@ -841,7 +840,9 @@ function getCompletionItems(type) {
     
     let methods = [];
     
-    if (j2meClasses[type]) { methods = getAllMethods(type); }
+    if (j2meClasses[type]) { 
+        methods = getAllMethods(type); 
+    }
     
     const objectMethods = getAllMethods('Object');
     objectMethods.forEach(objMethod => {
@@ -899,6 +900,50 @@ function getInheritedMethods(extendedClasses) {
     return inheritedMethods;
 }
 
+// Nova função para fornecer apenas classes J2ME como sugestões
+function getJ2MECompletionItems() {
+    const completionItems = [];
+    
+    Object.entries(j2meClasses).forEach(([className, classDef]) => {
+        // Sugestão para o nome da classe
+        const classItem = new vscode.CompletionItem(className, vscode.CompletionItemKind.Class);
+        classItem.detail = classDef.package;
+        classItem.documentation = new vscode.MarkdownString(classDef.description);
+        completionItems.push(classItem);
+        
+        // Sugestões para métodos estáticos (se houver)
+        if (classDef.methods) {
+            classDef.methods.forEach(method => {
+                const methodItem = new vscode.CompletionItem(
+                    `${className}.${method.label}`,
+                    vscode.CompletionItemKind.Method
+                );
+                methodItem.insertText = new vscode.SnippetString(method.insertText);
+                methodItem.detail = `${classDef.package}`;
+                methodItem.documentation = new vscode.MarkdownString(
+                    `**${method.label}** → ${method.returns}\n\n${method.documentation}`
+                );
+                completionItems.push(methodItem);
+            });
+        }
+        
+        // Sugestões para constantes (se houver)
+        if (classDef.constants) {
+            classDef.constants.forEach(constant => {
+                const constantItem = new vscode.CompletionItem(
+                    `${className}.${constant.label}`,
+                    vscode.CompletionItemKind.Constant
+                );
+                constantItem.detail = classDef.package;
+                constantItem.documentation = new vscode.MarkdownString(constant.documentation);
+                completionItems.push(constantItem);
+            });
+        }
+    });
+    
+    return completionItems;
+}
+
 module.exports = {
     j2meClasses,
     buildPackageHierarchy,
@@ -908,5 +953,6 @@ module.exports = {
     getExtendedClasses,
     getInheritedMethods,
     getAllMethods,
-    isInCommentOrString // Exportando a nova função
+    isInCommentOrString,
+    getJ2MECompletionItems // Nova função exportada
 };
