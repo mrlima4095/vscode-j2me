@@ -944,15 +944,4 @@ function getJ2MECompletionItems() {
     return completionItems;
 }
 
-module.exports = {
-    j2meClasses,
-    buildPackageHierarchy,
-    createSymbolsFromHierarchy,
-    getTypeAtPosition,
-    getCompletionItems,
-    getExtendedClasses,
-    getInheritedMethods,
-    getAllMethods,
-    isInCommentOrString,
-    getJ2MECompletionItems // Nova função exportada
-};
+module.exports = { j2meClasses, buildPackageHierarchy, createSymbolsFromHierarchy, getTypeAtPosition, getCompletionItems, getExtendedClasses, getInheritedMethods, getAllMethods, isInCommentOrString, getJ2MECompletionItems };
