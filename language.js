@@ -748,8 +748,354 @@ function findCurrentFunctionScope(document, position) {
     return null;
 }
 
+function getCurrentScope(document, position) {
+    const text = document.getText();
+    const lines = text.split('\n');
+    let currentLine = position.line;
+    
+    // Encontra o método/função atual
+    let inMethod = false;
+    let methodStart = -1;
+    let braceCount = 0;
+    let methodBraceCount = 0;
+    
+    for (let i = currentLine; i >= 0; i--) {
+        const line = lines[i].trim();
+        
+        if (line.startsWith('//')) continue;
+        
+        // Verifica se é uma declaração de método
+        if (line.match(/(public|private|protected|static|final|synchronized|abstract)\s+[\w<>\[\]]+\s+\w+\s*\([^)]*\)\s*\{?/) && 
+            !line.includes(';') && methodStart === -1) {
+            methodStart = i;
+            inMethod = true;
+            if (line.includes('{')) {
+                methodBraceCount = 1;
+            }
+            continue;
+        }
+        
+        if (inMethod) {
+            // Conta chaves para determinar o escopo do método
+            for (const char of line) {
+                if (char === '{') methodBraceCount++;
+                if (char === '}') methodBraceCount--;
+            }
+            
+            // Se encontrou o fim do método, para a busca
+            if (methodBraceCount <= 0 && i < currentLine) {
+                inMethod = false;
+                break;
+            }
+        }
+    }
+    
+    return {
+        inMethod: inMethod && methodBraceCount > 0,
+        methodStartLine: methodStart,
+        currentLine: currentLine
+    };
+}
+
+function getVariablesInScope(document, position) {
+    const scope = getCurrentScope(document, position);
+    const text = document.getText();
+    const lines = text.split('\n');
+    const variables = new Map();
+    
+    // Adiciona tokens Java básicos
+    const javaTokens = [
+        'public', 'private', 'protected', 'static', 'final', 'synchronized', 'abstract',
+        'class', 'interface', 'extends', 'implements', 'void', 'int', 'long', 'float', 'double',
+        'boolean', 'char', 'byte', 'short', 'String', 'if', 'else', 'for', 'while', 'do',
+        'switch', 'case', 'break', 'continue', 'return', 'try', 'catch', 'finally', 'throw',
+        'throws', 'new', 'this', 'super', 'null', 'true', 'false', 'import', 'package',
+        'native', 'volatile', 'transient', 'const', 'goto', 'instanceof', 'assert'
+    ];
+    
+    javaTokens.forEach(token => {
+        variables.set(token, {
+            name: token,
+            type: 'keyword',
+            kind: vscode.CompletionItemKind.Keyword
+        });
+    });
+    
+    // Busca variáveis no escopo da classe (campos)
+    if (scope.inMethod || !scope.inMethod) {
+        const classFields = findClassFields(document);
+        classFields.forEach(field => {
+            if (!variables.has(field.name)) {
+                variables.set(field.name, field);
+            }
+        });
+    }
+    
+    // Busca variáveis no escopo do método atual
+    if (scope.inMethod && scope.methodStartLine !== -1) {
+        const methodVars = findMethodVariables(document, scope.methodStartLine, position.line);
+        methodVars.forEach(variable => {
+            if (!variables.has(variable.name)) {
+                variables.set(variable.name, variable);
+            }
+        });
+        
+        // Adiciona parâmetros do método
+        const params = findMethodParameters(document, scope.methodStartLine);
+        params.forEach(param => {
+            if (!variables.has(param.name)) {
+                variables.set(param.name, param);
+            }
+        });
+    }
+    
+    // Busca variáveis locais no escopo atual (dentro de blocos)
+    const localVars = findLocalVariables(document, position);
+    localVars.forEach(variable => {
+        if (!variables.has(variable.name)) {
+            variables.set(variable.name, variable);
+        }
+    });
+    
+    return Array.from(variables.values());
+}
+
+function findClassFields(document) {
+    const text = document.getText();
+    const lines = text.split('\n');
+    const fields = [];
+    let inClass = false;
+    let braceCount = 0;
+    
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        
+        if (line.startsWith('//')) continue;
+        
+        // Detecta início da classe
+        if (line.match(/class\s+\w+/)) {
+            inClass = true;
+            braceCount = 1;
+            continue;
+        }
+        
+        if (!inClass) continue;
+        
+        // Conta chaves
+        for (const char of line) {
+            if (char === '{') braceCount++;
+            if (char === '}') braceCount--;
+        }
+        
+        // Se saiu da classe, para
+        if (braceCount <= 0) {
+            break;
+        }
+        
+        // Procura por declarações de campo (variáveis de classe)
+        const fieldRegex = /(?:public|private|protected|static|final)?\s*([\w<>\[\]]+)\s+(\w+)\s*[;=]/;
+        const match = line.match(fieldRegex);
+        if (match && !line.includes('(') && !line.includes(')')) {
+            const type = match[1];
+            const name = match[2];
+            fields.push({
+                name: name,
+                type: type,
+                kind: vscode.CompletionItemKind.Field,
+                detail: `Field: ${type}`
+            });
+        }
+    }
+    
+    return fields;
+}
+
+function findMethodParameters(document, methodStartLine) {
+    const lines = document.getText().split('\n');
+    const params = [];
+    
+    // Encontra a linha completa do método (pode ser multi-linha)
+    let methodDeclaration = '';
+    for (let i = methodStartLine; i < Math.min(methodStartLine + 5, lines.length); i++) {
+        methodDeclaration += lines[i] + ' ';
+        if (lines[i].includes('{') || lines[i].includes(';')) {
+            break;
+        }
+    }
+    
+    // Extrai os parâmetros
+    const paramRegex = /\(([^)]*)\)/;
+    const match = methodDeclaration.match(paramRegex);
+    if (match) {
+        const paramsStr = match[1];
+        const paramList = paramsStr.split(',').map(p => p.trim()).filter(p => p);
+        
+        paramList.forEach(param => {
+            const paramMatch = param.match(/([\w<>\[\]]+)\s+(\w+)/);
+            if (paramMatch) {
+                const type = paramMatch[1];
+                const name = paramMatch[2];
+                params.push({
+                    name: name,
+                    type: type,
+                    kind: vscode.CompletionItemKind.Variable,
+                    detail: `Parameter: ${type}`
+                });
+            }
+        });
+    }
+    
+    return params;
+}
+
+function findMethodVariables(document, methodStartLine, currentLine) {
+    const text = document.getText();
+    const lines = text.split('\n');
+    const variables = [];
+    let inMethod = false;
+    let braceCount = 0;
+    
+    for (let i = methodStartLine; i <= currentLine; i++) {
+        const line = lines[i].trim();
+        
+        if (line.startsWith('//')) continue;
+        
+        // Detecta início do método
+        if (i === methodStartLine) {
+            inMethod = true;
+            if (line.includes('{')) braceCount = 1;
+            continue;
+        }
+        
+        if (inMethod) {
+            // Conta chaves para escopos aninhados
+            for (const char of line) {
+                if (char === '{') braceCount++;
+                if (char === '}') braceCount--;
+            }
+            
+            // Se saiu do método, para
+            if (braceCount <= 0) {
+                break;
+            }
+            
+            // Procura por declarações de variáveis locais
+            const varRegex = /(?:final)?\s*([\w<>\[\]]+)\s+(\w+)\s*[;=]/;
+            const match = line.match(varRegex);
+            if (match && !line.includes('(') && !line.includes(')')) {
+                const type = match[1];
+                const name = match[2];
+                
+                // Verifica se não é um parâmetro (já adicionado anteriormente)
+                if (!variables.some(v => v.name === name)) {
+                    variables.push({
+                        name: name,
+                        type: type,
+                        kind: vscode.CompletionItemKind.Variable,
+                        detail: `Local: ${type}`
+                    });
+                }
+            }
+            
+            // Também captura variáveis em for loops
+            const forLoopRegex = /for\s*\(\s*([\w<>\[\]]+)\s+(\w+)\s*:/;
+            const forMatch = line.match(forLoopRegex);
+            if (forMatch) {
+                const type = forMatch[1];
+                const name = forMatch[2];
+                variables.push({
+                    name: name,
+                    type: type,
+                    kind: vscode.CompletionItemKind.Variable,
+                    detail: `Loop: ${type}`
+                });
+            }
+        }
+    }
+    
+    return variables;
+}
+
+function findLocalVariables(document, position) {
+    const text = document.getText();
+    const lines = text.split('\n');
+    const variables = [];
+    let braceCount = 0;
+    let inBlock = false;
+    let blockStart = -1;
+    
+    // Encontra o bloco atual (dentro do método)
+    for (let i = position.line; i >= 0; i--) {
+        const line = lines[i];
+        
+        if (line.includes('{')) {
+            braceCount++;
+            if (blockStart === -1) {
+                blockStart = i;
+                inBlock = true;
+            }
+        }
+        if (line.includes('}')) {
+            braceCount--;
+        }
+        
+        // Se encontrou um bloco que ainda está aberto na posição atual
+        if (braceCount > 0 && blockStart !== -1) {
+            break;
+        }
+    }
+    
+    // Se está em um bloco, procura variáveis declaradas nesse bloco
+    if (inBlock && blockStart !== -1) {
+        for (let i = blockStart; i <= position.line; i++) {
+            const line = lines[i].trim();
+            
+            if (line.startsWith('//')) continue;
+            
+            const varRegex = /(?:final)?\s*([\w<>\[\]]+)\s+(\w+)\s*[;=]/;
+            const match = line.match(varRegex);
+            if (match && !line.includes('(') && !line.includes(')')) {
+                const type = match[1];
+                const name = match[2];
+                variables.push({
+                    name: name,
+                    type: type,
+                    kind: vscode.CompletionItemKind.Variable,
+                    detail: `Local: ${type}`
+                });
+            }
+        }
+    }
+    
+    return variables;
+}
+
+// Função atualizada para fornecer sugestões de variáveis no escopo
+function getScopeAwareCompletionItems(document, position) {
+    const variables = getVariablesInScope(document, position);
+    const completionItems = [];
+    
+    variables.forEach(variable => {
+        const item = new vscode.CompletionItem(variable.name, variable.kind);
+        
+        if (variable.detail) {
+            item.detail = variable.detail;
+        }
+        
+        if (variable.type === 'keyword') {
+            item.documentation = new vscode.MarkdownString(`Java keyword`);
+        } else {
+            item.documentation = new vscode.MarkdownString(`Type: ${variable.type}`);
+        }
+        
+        completionItems.push(item);
+    });
+    
+    return completionItems;
+}
+
+// Atualize a função getTypeAtPosition para usar as novas funções de escopo
 function getTypeAtPosition(document, position) {
-    // Se estiver em comentário ou string, não retornar tipo
     if (isInCommentOrString(document, position)) {
         return null;
     }
@@ -768,6 +1114,14 @@ function getTypeAtPosition(document, position) {
     if (varAccessMatch) {
         const varName = varAccessMatch[1];
         
+        // Primeiro verifica se é uma variável no escopo atual
+        const scopeVariables = getVariablesInScope(document, position);
+        const variable = scopeVariables.find(v => v.name === varName);
+        if (variable && variable.type !== 'keyword') {
+            return variable.type;
+        }
+        
+        // Depois usa a inferência original como fallback
         const varType = inferVariableType(document, position, varName);
         if (varType) {
             return varType;
@@ -811,7 +1165,14 @@ function getTypeAtPosition(document, position) {
         } else {
             const contextMatch = beforeChain.match(/([a-zA-Z_][a-zA-Z0-9_]*)$/);
             if (contextMatch) {
-                currentType = inferVariableType(document, position, contextMatch[1]);
+                // Verifica no escopo atual primeiro
+                const scopeVariables = getVariablesInScope(document, position);
+                const variable = scopeVariables.find(v => v.name === contextMatch[1]);
+                if (variable && variable.type !== 'keyword') {
+                    currentType = variable.type;
+                } else {
+                    currentType = inferVariableType(document, position, contextMatch[1]);
+                }
             }
         }
         
@@ -943,5 +1304,6 @@ function getJ2MECompletionItems() {
     
     return completionItems;
 }
+
 
 module.exports = { j2meClasses, buildPackageHierarchy, createSymbolsFromHierarchy, getTypeAtPosition, getCompletionItems, getExtendedClasses, getInheritedMethods, getAllMethods, isInCommentOrString, getJ2MECompletionItems };
