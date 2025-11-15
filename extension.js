@@ -62,6 +62,15 @@ function activate(context) {
         '.'
     );
 
+    const varProvider = vscode.languages.registerCompletionItemProvider(
+        { language: 'java', scheme: 'file' },
+        {
+            provideCompletionItems(document, position) {
+                return language.getSmartCompletionItems(document, position);
+            }
+        }
+    );
+
     const directMethodProvider = vscode.languages.registerCompletionItemProvider(
         { language: 'java', scheme: 'file' },
         {
@@ -70,35 +79,33 @@ function activate(context) {
                 const isDirectCompletion = !lineText.match(/[\w\)]\.$/);
                 
                 if (isDirectCompletion) {
-                    // Verifica todas as classes extendidas
+                    const items = [];
+                    
+                    // Adiciona tokens Java e variáveis do escopo
+                    items.push(...language.getScopeAwareCompletionItems(document, position));
+                    
+                    // Adiciona métodos herdados
                     const extendedClasses = language.getExtendedClasses(document);
                     if (extendedClasses.length > 0) {
                         const inheritedMethods = language.getInheritedMethods(extendedClasses);
-                        return inheritedMethods.map(method => {
+                        inheritedMethods.forEach(method => {
                             const item = new vscode.CompletionItem(method.label, vscode.CompletionItemKind.Method);
                             item.insertText = new vscode.SnippetString(method.insertText);
                             item.documentation = new vscode.MarkdownString(
                                 `${method.documentation}\n\n*Inherited from ${method.inheritedFrom}*`
                             );
                             item.detail = `${method.inheritedFrom}.${method.label} → ${method.returns}`;
-                            return item;
+                            items.push(item);
                         });
                     }
+                    
+                    return items;
                 }
                 
                 return [];
             }
         },
         ''
-    );
-
-    const varProvider = vscode.languages.registerCompletionItemProvider(
-        { language: 'java', scheme: 'file' },
-        {
-            provideCompletionItems(document, position) {
-                return language.getScopeAwareCompletionItems(document, position);
-            }
-        }
     );
 
     const symbolProvider = vscode.languages.registerDocumentSymbolProvider(

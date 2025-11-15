@@ -361,6 +361,215 @@ const j2meClasses = {
 
 const methodCache = new Map();
 
+function getJavaTokens() {
+    return [
+        { name: 'public', type: 'modifier', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'private', type: 'modifier', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'protected', type: 'modifier', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'static', type: 'modifier', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'final', type: 'modifier', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'synchronized', type: 'modifier', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'abstract', type: 'modifier', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'volatile', type: 'modifier', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'transient', type: 'modifier', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'native', type: 'modifier', kind: vscode.CompletionItemKind.Keyword },
+        
+        { name: 'class', type: 'declaration', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'interface', type: 'declaration', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'enum', type: 'declaration', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'extends', type: 'declaration', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'implements', type: 'declaration', kind: vscode.CompletionItemKind.Keyword },
+        
+        { name: 'void', type: 'type', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'int', type: 'type', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'long', type: 'type', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'float', type: 'type', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'double', type: 'type', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'boolean', type: 'type', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'char', type: 'type', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'byte', type: 'type', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'short', type: 'type', kind: vscode.CompletionItemKind.Keyword },
+        
+        { name: 'if', type: 'control', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'else', type: 'control', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'for', type: 'control', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'while', type: 'control', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'do', type: 'control', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'switch', type: 'control', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'case', type: 'control', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'break', type: 'control', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'continue', type: 'control', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'return', type: 'control', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'default', type: 'control', kind: vscode.CompletionItemKind.Keyword },
+        
+        { name: 'try', type: 'exception', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'catch', type: 'exception', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'finally', type: 'exception', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'throw', type: 'exception', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'throws', type: 'exception', kind: vscode.CompletionItemKind.Keyword },
+        
+        { name: 'new', type: 'operator', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'this', type: 'operator', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'super', type: 'operator', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'instanceof', type: 'operator', kind: vscode.CompletionItemKind.Keyword },
+        
+        { name: 'import', type: 'package', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'package', type: 'package', kind: vscode.CompletionItemKind.Keyword },
+        
+        { name: 'null', type: 'literal', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'true', type: 'literal', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'false', type: 'literal', kind: vscode.CompletionItemKind.Keyword },
+        
+        { name: 'const', type: 'reserved', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'goto', type: 'reserved', kind: vscode.CompletionItemKind.Keyword },
+        { name: 'assert', type: 'reserved', kind: vscode.CompletionItemKind.Keyword }
+    ];
+}
+
+function getVariablesInScope(document, position) {
+    const scope = getCurrentScope(document, position);
+    const variables = new Map();
+    
+    // Primeiro adiciona todos os tokens Java
+    const javaTokens = getJavaTokens();
+    javaTokens.forEach(token => {
+        variables.set(token.name, {
+            name: token.name,
+            type: 'keyword',
+            kind: token.kind,
+            detail: `Java keyword`
+        });
+    });
+    
+    // Busca variáveis no escopo da classe (campos)
+    const classFields = findClassFields(document);
+    classFields.forEach(field => {
+        if (!variables.has(field.name)) {
+            variables.set(field.name, field);
+        }
+    });
+    
+    // Busca variáveis no escopo do método atual
+    if (scope.inMethod && scope.methodStartLine !== -1) {
+        const methodVars = findMethodVariables(document, scope.methodStartLine, position.line);
+        methodVars.forEach(variable => {
+            if (!variables.has(variable.name)) {
+                variables.set(variable.name, variable);
+            }
+        });
+        
+        // Adiciona parâmetros do método
+        const params = findMethodParameters(document, scope.methodStartLine);
+        params.forEach(param => {
+            if (!variables.has(param.name)) {
+                variables.set(param.name, param);
+            }
+        });
+    }
+    
+    // Busca variáveis locais no escopo atual (dentro de blocos)
+    const localVars = findLocalVariables(document, position);
+    localVars.forEach(variable => {
+        if (!variables.has(variable.name)) {
+            variables.set(variable.name, variable);
+        }
+    });
+    
+    return Array.from(variables.values());
+}
+
+function getScopeAwareCompletionItems(document, position) {
+    // Verifica se está em comentário ou string
+    if (isInCommentOrString(document, position)) {
+        return [];
+    }
+    
+    const variables = getVariablesInScope(document, position);
+    const completionItems = [];
+    
+    variables.forEach(variable => {
+        const item = new vscode.CompletionItem(variable.name, variable.kind);
+        
+        if (variable.detail) {
+            item.detail = variable.detail;
+        }
+        
+        if (variable.type === 'keyword') {
+            item.documentation = new vscode.MarkdownString(`**Java keyword**`);
+        } else {
+            item.documentation = new vscode.MarkdownString(`**Variable**\n\nType: \`${variable.type}\``);
+        }
+        
+        completionItems.push(item);
+    });
+    
+    return completionItems;
+}
+
+// Função auxiliar para verificar o contexto atual
+function getCompletionContext(document, position) {
+    const lineText = document.lineAt(position.line).text.substring(0, position.character);
+    
+    // Verifica se está no início da linha ou após um espaço
+    if (lineText.trim() === '' || lineText.endsWith(' ')) {
+        return 'statement_start';
+    }
+    
+    // Verifica se está após um ponto (para métodos)
+    if (lineText.endsWith('.')) {
+        return 'method_access';
+    }
+    
+    // Verifica se está em uma declaração
+    if (lineText.match(/(public|private|protected|static|final|class|interface|void|int|boolean|char|byte|short|long|float|double)\s*$/)) {
+        return 'declaration';
+    }
+    
+    return 'general';
+}
+
+function getSmartCompletionItems(document, position) {
+    const context = getCompletionContext(document, position);
+    const items = [];
+    
+    switch (context) {
+        case 'statement_start':
+        case 'declaration':
+        case 'general':
+            items.push(...getScopeAwareCompletionItems(document, position));
+            
+            if (context === 'declaration' || context === 'statement_start') {
+                Object.keys(j2meClasses).forEach(className => {
+                    const classDef = j2meClasses[className];
+                    const item = new vscode.CompletionItem(className, vscode.CompletionItemKind.Class);
+                    item.detail = classDef.package;
+                    item.documentation = new vscode.MarkdownString(classDef.description);
+                    items.push(item);
+                });
+            }
+            break;
+            
+        case 'method_access':
+            const type = getTypeAtPosition(document, position);
+            if (type && j2meClasses[type]) {
+                const methods = getAllMethods(type);
+                methods.forEach(method => {
+                    const item = new vscode.CompletionItem(method.label, vscode.CompletionItemKind.Method);
+                    item.insertText = new vscode.SnippetString(method.insertText);
+                    item.documentation = new vscode.MarkdownString(
+                        `**${method.label}** → ${method.returns}\n\n${method.documentation}` +
+                        (method.inheritedFrom && method.inheritedFrom !== type ? 
+                         `\n\n*Inherited from ${method.inheritedFrom}*` : '')
+                    );
+                    items.push(item);
+                });
+            }
+            break;
+    }
+    
+    return items;
+}
+
 function getAllMethods(className) {
     if (methodCache.has(className)) {
         return methodCache.get(className);
@@ -1004,7 +1213,7 @@ function findMethodVariables(document, methodStartLine, currentLine) {
                 const type = forMatch[1];
                 const name = forMatch[2];
                 variables.push({
-                    name: name,
+                    name : name,
                     type: type,
                     kind: vscode.CompletionItemKind.Variable,
                     detail: `Loop: ${type}`
