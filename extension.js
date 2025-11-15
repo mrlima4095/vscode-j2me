@@ -95,18 +95,8 @@ function activate(context) {
     const varProvider = vscode.languages.registerCompletionItemProvider(
         { language: 'java', scheme: 'file' },
         {
-            provideCompletionItems(document) {
-                const text = document.getText();
-                const items = [];
-                const varMatches = text.matchAll(/([\w<>]+)\s+(\w+)\s*(=|;)/g);
-                for (const match of varMatches) {
-                    const name = match[2];
-                    const type = match[1];
-                    const item = new vscode.CompletionItem(name, vscode.CompletionItemKind.Variable);
-                    item.detail = type;
-                    items.push(item);
-                }
-                return items;
+            provideCompletionItems(document, position) {
+                return language.getScopeAwareCompletionItems(document, position);
             }
         }
     );
