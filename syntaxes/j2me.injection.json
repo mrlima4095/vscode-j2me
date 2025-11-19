@@ -5,18 +5,6 @@
         {
             "match": "\\b(javax\\.microedition\\.[a-zA-Z0-9.]*)\\b",
             "name": "support.namespace.j2me"
-        },
-        {
-            "match": "\\b(MIDlet|Display|Displayable|Canvas|Form|TextBox|List|Alert|Command|Ticker|GameCanvas|Image|Graphics|RecordStore|HttpConnection|SocketConnection|UDPDatagramConnection|PlayerManager|Player|Control|VolumeControl)\\b",
-            "name": "support.class.j2me"
-        },
-        {
-            "match": "\\b(startApp|pauseApp|destroyApp|commandAction|paint|keyPressed|keyReleased|keyRepeated|pointerPressed|pointerReleased|pointerDragged|getWidth|getHeight|getDisplay|setCurrent|setCommandListener|addCommand|removeCommand|setTicker|setTitle|setString|append|insert|delete|getString|getChars|setChars|setMaxSize|getCaretPosition|setInitialInputMode|getSelectedIndex|setSelectedIndex|getSelectedFlags|setSelectedFlags|isSelected|getSize|getRecord|setRecord|addRecord|deleteRecord|deleteAllRecords|enumerateRecords|getNumRecords|getSize|getVersion|getLastModified|closeRecordStore|listRecordStores)\\b",
-            "name": "support.function.j2me"
-        },
-        {
-            "match": "\\b(SCREEN|CANVAS|LIST|ALERT|FORM|TEXTBOX|IMPLICIT|EXCLUSIVE|MULTIPLE|POPUP|BACK|OK|CANCEL|HELP|ITEM|STATIC|HYPERLINK|BUTTON|IMAGE_ITEM|STRING_ITEM|TEXT_FIELD|DATE_FIELD|GAUGE_ITEM|CHOICE_GROUP|SPACE|NEWLINE|HCENTER|VCENTER|LEFT|RIGHT|TOP|BOTTOM|BASELINE|SOLID|DOTTED|TRUNCATE|ELLIPSIS)\\b",
-            "name": "support.constant.j2me"
         }
     ]
 }
