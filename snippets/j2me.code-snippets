@@ -22,7 +22,7 @@
             "    public void destroyApp(boolean unconditional) { }",
             "",
             "    public void commandAction(Command c, Displayable d) {",
-            "        if (c == exit) { destroyApp(false); notifyDestroyed(); }",
+            "        if (c == exit) { 
             "    }",
             "}"
         ],
@@ -135,7 +135,7 @@
             "    }",
             "}"
         ],
-        "description": "RMS Read/Write utilities for RecordStore"
+        "description": "Read/Write utilities for RecordStore"
     },
 
     "Imports": {
